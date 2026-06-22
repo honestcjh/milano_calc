@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
 <title>IL CONTO · 밀라노 정산</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -134,7 +134,7 @@ input,select{font-family:'Nunito',sans-serif;}
 /* ── LOGIN ── */
 .login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:48px 20px 64px;
-  background:linear-gradient(160deg,#FFF2E6 0%,#FFF8F2 50%,#F2F6FF 100%);}
+  background:linear-gradient(160deg,#FFF2E6 0%,#FFF8F2 50%,#F2F6FF(100%));}
 .l-flag{font-size:3rem;line-height:1;margin-bottom:6px;}
 .l-brand{font-size:2.8rem;font-weight:900;letter-spacing:-.04em;line-height:1;
   background:linear-gradient(135deg,var(--terra) 10%,var(--sun) 90%);
@@ -563,18 +563,18 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (고정 노출 플랫 뷰 구조) ── */
+/* ── 영수증 (누구나 전체 열람 가능한 완전 오픈형 구조) ── */
 function historyHTML(){
-  const allSplits=[...state.record.splits].sort((a,b)=>
+  // 최신순 정렬
+  const splits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
-  
-  const splits = allSplits.filter(s => s.payerId === state.me || s.shares.some(sh => sh.memberId === state.me));
 
-  if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낼게 탭에서 정산을 등록해보세요!</div>`;
+  if(!splits.length)return`<div class="empty">아직 등록된 영수증이 없어요 🧾<br>내가낼게 탭에서 첫 정산을 등록해보세요!</div>`;
   
   return splits.map(s=>{
     const cur=s.currency,total=s.shares.reduce((t,x)=>t+x.amount,0);
     const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
+    // 오픈형이므로 본인이 등록한 영수증이면 삭제 단추 노출
     const canDelete=s.payerId===state.me;
     const recId="rec"+s.id;
     
