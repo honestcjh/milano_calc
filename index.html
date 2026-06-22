@@ -44,22 +44,19 @@ input,select{font-family:'Nunito',sans-serif;}
 .tab.on{color:var(--terra);border-bottom-color:var(--terra);}
 .content{padding:136px 16px 48px;}
 
-/* ── CARDS ── */
+/* ── CARDS & COMPONENTS ── */
 .card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
 .sec-h{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px;}
-
-/* ── CTA ── */
 .cta{width:100%;background:linear-gradient(135deg,var(--terra) 0%,#F08050 100%);
   color:#fff;border:none;border-radius:18px;padding:22px 20px;text-align:left;
   margin-bottom:16px;box-shadow:0 6px 20px rgba(232,105,74,.35);}
 .cta:active{transform:scale(.98);}
 .cta .big{font-size:1.15rem;font-weight:900;letter-spacing:-.01em;}
 .cta .sub{font-size:.78rem;opacity:.9;margin-top:4px;font-weight:600;}
-
-/* ── CHART ── */
-.chart-wrap{background:var(--card);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
-.chart-title{font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:14px;}
-.chart-svg{width:100%;overflow:visible;}
+.btn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;font-size:.82rem;font-weight:800;color:var(--ink);flex:1;text-align:center;}
+.btn.primary{background:var(--terra);color:#fff;border-color:var(--terra);}
+.btn.ghost{color:var(--ink-soft);}
+.btn.danger{background:#FFE9E4;color:var(--debit);border-color:transparent;}
 
 /* ── WALLET ── */
 .wallet{background:var(--card);border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:var(--shadow-sm);}
@@ -71,7 +68,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .w-cell .lbl{font-size:.66rem;color:var(--ink-soft);font-weight:700;}
 .w-cell .val{font-size:1.05rem;font-weight:900;margin-top:2px;}
 .w-net{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:800;}
-.w-pend{font-size:.7rem;color:var(--pending);margin-top:6px;font-weight:700;}
 
 /* ── INBOX ── */
 .inbox-item{background:var(--card);border-radius:14px;padding:14px;margin-bottom:9px;box-shadow:var(--shadow-sm);}
@@ -80,10 +76,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .ii-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .ii-amt{font-weight:900;font-size:1.05rem;white-space:nowrap;}
 .ii-actions{display:flex;gap:7px;margin-top:11px;}
-.btn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;font-size:.82rem;font-weight:800;color:var(--ink);flex:1;}
-.btn.primary{background:var(--terra);color:#fff;border-color:var(--terra);}
-.btn.ghost{color:var(--ink-soft);}
-.btn.danger{color:var(--debit);}
 .badge{display:inline-block;font-size:.62rem;font-weight:800;padding:2px 8px;border-radius:999px;}
 .badge.pend{background:#FEF0C7;color:var(--pending);}
 .badge.acc{background:#D1FAE5;color:var(--credit);}
@@ -121,15 +113,18 @@ input,select{font-family:'Nunito',sans-serif;}
 .save{width:100%;background:linear-gradient(135deg,var(--terra),#F08050);color:#fff;border:none;border-radius:13px;padding:16px;font-size:1rem;font-weight:900;box-shadow:0 4px 14px rgba(232,105,74,.3);}
 .save:disabled{opacity:.5;}
 
-/* ── HISTORY ── */
-.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;position:relative;box-shadow:var(--shadow-sm);cursor:pointer;transition:background .15s;}
-.receipt:hover{background:var(--cream);}
-.r-top{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:10px;pointer-events:none;}
+/* ── HISTORY (영수증) ── */
+.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .1s;}
+.receipt:active{transform:scale(.99);}
+.r-top{display:flex;justify-content:space-between;gap:8px;pointer-events:none;}
 .r-desc{font-weight:800;font-size:1rem;}
 .r-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .r-total{font-weight:900;font-size:1.1rem;white-space:nowrap;}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
-.del{position:absolute;top:12px;right:12px;background:#FFE9E4;border:none;color:var(--debit);font-size:.72rem;padding:6px 10px;border-radius:8px;font-weight:700;opacity:1;cursor:pointer;}
+.receipt-details{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);cursor:default;}
+.receipt.expanded .receipt-details{display:block;}
+.settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
+.settle-item:last-child{border-bottom:none;}
 
 /* ── MEMBERS ── */
 .mrow{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
@@ -150,7 +145,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .l-tag{font-size:.9rem;font-weight:700;color:var(--ink-soft);margin-bottom:28px;text-align:center;line-height:1.6;}
 .l-card{background:var(--card);border-radius:22px;padding:22px 20px;width:100%;max-width:380px;box-shadow:var(--shadow);}
 .l-card-h{font-weight:900;font-size:1.05rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
-/* pick grid */
 .pick-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:0;}
 .pick-btn{padding:13px 6px;border:1.5px solid var(--line);background:#fff;border-radius:12px;
   font-size:.88rem;font-weight:800;color:var(--ink);text-align:center;line-height:1.3;position:relative;}
@@ -158,7 +152,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .pick-btn.claimed::after{content:"✓";position:absolute;top:5px;right:7px;font-size:.6rem;
   color:var(--credit);font-weight:900;}
 .pick-btn.claimed{border-color:#D1FAE5;}
-/* pin step */
 .l-selected-name{font-size:1.6rem;font-weight:900;color:var(--terra);text-align:center;margin:4px 0 6px;}
 .l-pin-sub{font-size:.85rem;color:var(--ink-soft);text-align:center;margin-bottom:18px;font-weight:600;}
 .l-pin-input{width:100%;font-size:1.6rem;padding:14px;border:2px solid var(--line);border-radius:13px;
@@ -171,13 +164,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .l-err{background:#FFE9E4;color:var(--debit);border-radius:10px;padding:9px 14px;
   font-size:.82rem;margin-bottom:12px;font-weight:700;text-align:center;}
 
-.receipt-expanded{max-height:1000px !important;overflow:visible;}
-.receipt-details{max-height:0;overflow:hidden;transition:max-height .25s ease;background:var(--cream);margin:0 -16px -16px;padding:0 16px}
-.receipt.expanded .receipt-details{max-height:1000px;padding:12px 16px 16px;}
-.receipt-toggle{display:none;}
-.receipt.expanded .receipt-toggle{transform:rotate(180deg);}
-.settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
-.settle-item:last-child{border-bottom:none;}
 /* ── MISC ── */
 .empty{text-align:center;color:var(--ink-soft);padding:44px 18px;line-height:1.8;font-weight:600;}
 .foot{text-align:center;font-size:.66rem;color:var(--ink-soft);padding:18px;font-weight:600;}
@@ -277,7 +263,6 @@ async function putRecord(rec){
   }
 }
 
-/* 프리셋 시딩: bin에 없는 프리셋 멤버 추가 */
 function mergePresets(rec){
   let changed=false;
   PRESET.forEach(p=>{
@@ -308,7 +293,7 @@ async function mutate(fn){
   try{
     let rec;
     try{rec=await fetchRecord();}
-    catch(e){rec=JSON.parse(JSON.stringify(state.record));} // 깊은 복사 폴백
+    catch(e){rec=JSON.parse(JSON.stringify(state.record));}
     mergePresets(rec);
     fn(rec);
     state.record=rec;saveCache();
@@ -377,11 +362,6 @@ function myInbox(){
   items.sort((a,b)=>w[a.type]-w[b.type]);
   return items;
 }
-function spendingByDay(){
-  return DAYS.map(d=>{let t=0;
-    state.record.splits.filter(s=>s.currency==="EUR"&&s.date===d.date).forEach(s=>{
-      s.shares.forEach(sh=>{if(sh.status==="confirmed")t+=sh.amount;});});return t;});
-}
 
 /* ─── RENDER ─── */
 function render(){
@@ -422,10 +402,8 @@ function viewHTML(){
 /* ── 홈 ── */
 function homeHTML(){
   const inbox=myInbox();const cta=ctaObj();
-  let html=`
-    <button class="cta" data-tab="create"><div class="big">${cta.big}</div><div class="sub">${cta.sub}</div></button>`;
+  let html=`<button class="cta" data-tab="create"><div class="big">${cta.big}</div><div class="sub">${cta.sub}</div></button>`;
   
-  // 통화별 정산 현황
   const active=CUR_ORDER.filter(c=>state.record.splits.some(s=>s.currency===c));
   if(active.length){
     html+=`<div class="sec-h" style="margin-top:12px">💸 정산 현황</div>`;
@@ -446,7 +424,6 @@ function homeHTML(){
         </div>
       </div>`;
       
-      // 송금 정리
       if(myOut.length || myIn.length){
         html+=`<div class="card" style="background:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
           <div class="sec-h">📌 ${CUR[cur].name} 정산하기</div>`;
@@ -473,7 +450,6 @@ function homeHTML(){
     });
   }
 
-  // 응답할 정산함
   if(inbox.length){
     html+=`<div class="sec-h" style="margin-top:16px">✉️ 응답할 내용 (${inbox.length})</div>`;
     inbox.forEach(it=>html+=inboxItemHTML(it));
@@ -521,12 +497,9 @@ function inboxItemHTML(it){
 function ensureForm(){
   if(form)return;
   const checked={};
-  // 기본적으로 본인은 선택 상태로 시작합니다.
   state.record.members.forEach(m=>{ checked[m.id] = (m.id === state.me); });
-  // 오늘 날짜 찾기
   const today=new Date().toISOString().slice(0,10);
   const todayDay=DAYS.find(d=>d.date===today)||DAYS[0];
-  // 현재 시간대 결정
   const hour=new Date().getHours();
   let currentTime="저녁";
   if(hour<12)currentTime="오전";
@@ -589,11 +562,9 @@ function createHTML(){
 
 /* ── 영수증 ── */
 function historyHTML(){
-  // 전체 영수증을 최신순으로 정렬
   const allSplits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
   
-  // 본인이 결제했거나 분담자에 포함된 영수증만 필터링합니다.
   const splits = allSplits.filter(s => s.payerId === state.me || s.shares.some(sh => sh.memberId === state.me));
 
   if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낼게 탭에서 정산을 등록해보세요!</div>`;
@@ -603,8 +574,8 @@ function historyHTML(){
     const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
     const canDelete=s.payerId===state.me;
     const recId="rec"+s.id;
+    
     return`<div class="receipt" id="${recId}">
-      <button class="receipt-toggle" data-act="toggle" data-rid="${recId}">⌄</button>
       <div class="r-top">
         <div>
           <div class="r-desc">${esc(s.desc)}</div>
@@ -612,28 +583,29 @@ function historyHTML(){
         </div>
         <div class="r-total num">${fmt(total,cur)}</div>
       </div>
+      
       <div class="receipt-details">
-        <div style="border-top:1px dashed var(--line);padding-top:10px;margin-top:8px">
-          <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">결제자</div>
-          <div class="share-line" style="padding:0 0 10px;margin-bottom:10px;border-bottom:1px solid var(--line)">
-            <span class="pname"><b>${esc(nameOf(s.payerId))}</b>${s.payerId===state.me?" <span class='me-tag'>나</span>":""}</span>
-            <span class="dots"></span>
-            <span class="num">${fmt(total,cur)}</span>
-          </div>
-          <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">분담자 전체</div>
-          ${s.shares.map(sh=>{
-            const isMe=sh.memberId===state.me;
-            const b=sh.status==="edit_requested"?`<span class="badge edit" style="font-size:.6rem">수정요청</span>`:"";
-            const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
-            return`<div class="share-line">
-              <span class="pname">${esc(nameOf(sh.memberId))}${isMe?" <span class='me-tag'>나</span>":""} ${b}</span>
-              <span class="dots"></span>
-              <span class="num" style="font-size:.88rem">${fmt(amt,cur)}</span>
-            </div>`;
-          }).join("")}
+        <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-bottom:6px">결제자</div>
+        <div class="share-line" style="margin-bottom:12px">
+          <span class="pname"><b>${esc(nameOf(s.payerId))}</b>${s.payerId===state.me?" <span class='me-tag'>나</span>":""}</span>
+          <span class="dots"></span>
+          <span class="num">${fmt(total,cur)}</span>
         </div>
+        
+        <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-bottom:6px">분담 내역 (${s.shares.length}명)</div>
+        ${s.shares.map(sh=>{
+          const isMe=sh.memberId===state.me;
+          const b=sh.status==="edit_requested"?`<span class="badge edit" style="font-size:.6rem">수정요청</span>`:"";
+          const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
+          return`<div class="share-line">
+            <span class="pname">${esc(nameOf(sh.memberId))}${isMe?" <span class='me-tag'>나</span>":""} ${b}</span>
+            <span class="dots"></span>
+            <span class="num" style="font-size:.88rem">${fmt(amt,cur)}</span>
+          </div>`;
+        }).join("")}
+        
+        ${canDelete?`<button class="btn danger" style="width:100%; margin-top:16px;" data-act="delsplit" data-sid="${s.id}">이 영수증 삭제하기</button>`:""}
       </div>
-      ${canDelete?`<button class="del" data-act="delsplit" data-sid="${s.id}">삭제</button>`:""}
     </div>`;
   }).join("");
 }
@@ -664,7 +636,6 @@ function membersHTML(){
 /* ── 로그인 ── */
 function renderLogin(){
   const members=state.record.members;
-  // 프리셋 기준으로 정렬 (프리셋 순 → 나머지)
   const presetIds=PRESET.map(p=>p.id);
   const sorted=[
     ...PRESET.map(p=>members.find(m=>m.id===p.id)||{id:p.id,name:p.name,pin:null}),
@@ -696,7 +667,6 @@ function renderLogin(){
       });
     });
   } else {
-    // PIN 입력 단계
     $("#app").innerHTML=`
     <div class="login-wrap">
       <div class="l-flag">🇮🇹</div>
@@ -723,7 +693,6 @@ async function doLogin(){
   const pin=lPin;
   if(pin.length!==4||!/^\d{4}$/.test(pin)){lErr="PIN은 숫자 4자리여야 해요.";return renderLogin();}
 
-  // 최신 레코드 가져오기
   let rec;
   try{rec=await fetchRecord();}
   catch(e){rec=JSON.parse(JSON.stringify(state.record));}
@@ -733,14 +702,12 @@ async function doLogin(){
   if(!member){lErr="멤버를 찾을 수 없어요. 다시 시도해주세요.";return renderLogin();}
 
   if(member.pin){
-    // 기존 PIN 검증
     if(member.pin!==pin){lErr="PIN이 맞지 않아요 🔐";return renderLogin();}
     state.me=member.id;
     state.record=rec;saveCache();
     lStep="pick";lPin="";lErr="";
     state.tab="home";render();
   } else {
-    // 신규 PIN 설정
     member.pin=pin;
     state.record=rec;
     try{
@@ -770,10 +737,10 @@ function bind(){
   app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
   app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.name=el.value;}}));
   
-  // receipt 클릭해서 펼치기
+  // 영수증 펼치기 처리 (버튼 클릭시 무시)
   app.querySelectorAll(".receipt").forEach(r=>{
     r.addEventListener("click",(e)=>{
-      if(e.target.closest(".del"))return; // 삭제 버튼은 클릭 처리 분리
+      if(e.target.closest("button")) return; 
       const id=r.id;if(id)r.classList.toggle("expanded");
     });
   });
@@ -809,7 +776,7 @@ async function handleAct(act,d){
         const sh=s.shares.find(x=>x.memberId===d.mid);sh.proposed=null;sh.status="pending";});
       toast("거절했어요. 대기중으로 돌아가요");break;
     case "delsplit":
-      if(!confirm("이 정산을 삭제할까요?"))break;
+      if(!confirm("이 정산을 정말 삭제할까요?"))break;
       await mutate(rec=>{rec.splits=rec.splits.filter(x=>x.id!==sid);});toast("삭제했어요");break;
     case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null});render();break;
     case "mremove":
@@ -819,7 +786,7 @@ async function handleAct(act,d){
       await mutate(rec=>{
         mdraft.forEach(dm=>{
           const ex=rec.members.find(x=>x.id===dm.id);
-          if(ex && !PRESET.find(p=>p.id===dm.id)){ex.name=dm.name||"이름없음";} // 커스텀 멤버만 이름 변경 반영
+          if(ex && !PRESET.find(p=>p.id===dm.id)){ex.name=dm.name||"이름없음";} 
           else if(!ex) rec.members.push({id:dm.id,name:dm.name||"이름없음",pin:null});
         });
         const presetIds=PRESET.map(p=>p.id);
