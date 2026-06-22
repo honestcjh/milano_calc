@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
 <title>IL CONTO · 밀라노 정산</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -222,7 +222,6 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const toMinor=(v,cur)=>{const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:Math.round(n*CUR[cur].factor);};
 const fmt=(minor,cur)=>{const c=CUR[cur];return c.sym+(minor/c.factor).toLocaleString("ko-KR",{minimumFractionDigits:c.dp,maximumFractionDigits:c.dp});};
 
-// 100% 안전하게 이름을 받아오는 전역 핸들러 (프리셋과 동적 멤버 완벽 상호 호환)
 const nameOf=id=>{
   const foundInState = state.record.members.find(m => m.id === id);
   if(foundInState && foundInState.name) return foundInState.name;
@@ -564,7 +563,7 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (완전 고정 노출형 플랫 뷰 구조) ── */
+/* ── 영수증 (고정 노출 플랫 뷰 구조) ── */
 function historyHTML(){
   const allSplits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
@@ -647,7 +646,7 @@ function renderLogin(){
   ];
 
   if(lStep==="pick"){
-    $("#app").innerHTML suicide=`
+    $("#app").innerHTML=`
     <div class="login-wrap">
       <div class="l-flag">🇮🇹</div>
       <div class="l-brand">IL CONTO</div>
@@ -664,7 +663,6 @@ function renderLogin(){
         </div>
       </div>
     </div>`;
-    $("#app").innerHTML = $("#app").innerHTML.replace("suicide", ""); // 런타임 보정
     $("#app").querySelectorAll(".pick-btn").forEach(b=>{
       b.addEventListener("click",()=>{
         lPick={id:b.dataset.pickid,name:b.dataset.pickname,hasPin:b.dataset.haspin==="true"};
@@ -796,7 +794,7 @@ async function createSplit(){
   ensureForm();const cur=form.currency;
   const ids=state.record.members.filter(m=>form.checked[m.id]).map(m=>m.id);
   if(!form.desc.trim()){form.err="내용을 적어주세요.";return render();}
-  if(!ids.length){form.err="참여자를 한 명 이상 선택해주세요.";return render();}
+  if(!ids.length){form.err="참여자가 한 명 이상 선택되지 않았습니다.";return render();}
   let shares=[];
   if(form.method==="equal"){
     const total=toMinor(form.total,cur);
