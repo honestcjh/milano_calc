@@ -313,8 +313,7 @@ async function mutate(fn){
     await putRecord(rec);
     return true;
   }catch(e){
-    toast("저장 실패 — 네트워크를 확인해주세요 😢",2500);
-    console.error("mutate error",e);
+    console.warn("mutate error",e);
     return false;
   }finally{
     state.busy=false;render();
@@ -327,7 +326,7 @@ function settleByCurrency(cur){
   state.record.splits.filter(s=>s.currency===cur).forEach(s=>{
     s.shares.forEach(sh=>{
       if(sh.memberId===s.payerId)return;
-      if(sh.status==="accepted"){
+      if(sh.status==="confirmed"){
         net[s.payerId]=(net[s.payerId]||0)+sh.amount;
         net[sh.memberId]=(net[sh.memberId]||0)-sh.amount;
       }
@@ -362,7 +361,7 @@ function myInbox(){
   state.record.splits.forEach(s=>{
     if(s.payerId!==me){
       const sh=s.shares.find(x=>x.memberId===me);
-      if(sh&&sh.status==="pending")items.push({type:"accept",split:s,share:sh});
+      if(sh&&sh.status==="confirmed")items.push({type:"pending",split:s,share:sh});
       if(sh&&sh.status==="edit_requested")items.push({type:"mine_pending",split:s,share:sh});
     }
     if(s.payerId===me){
@@ -379,7 +378,7 @@ function myInbox(){
 function spendingByDay(){
   return DAYS.map(d=>{let t=0;
     state.record.splits.filter(s=>s.currency==="EUR"&&s.date===d.date).forEach(s=>{
-      s.shares.forEach(sh=>{if(sh.status==="accepted")t+=sh.amount;});});return t;});
+      s.shares.forEach(sh=>{if(sh.status==="confirmed")t+=sh.amount;});});return t;});
 }
 
 /* ─── CHART ─── */
@@ -485,14 +484,13 @@ function homeHTML(){
 function inboxItemHTML(it){
   const s=it.split,sh=it.share,cur=s.currency;
   const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
-  if(it.type==="accept")return`<div class="inbox-item">
+  if(it.type==="pending")return`<div class="inbox-item">
     <div class="ii-top"><div>
-      <div class="ii-desc">${esc(s.desc)} <span class="badge pend">수락 대기</span></div>
+      <div class="ii-desc">${esc(s.desc)} <span class="badge acc">확정됨</span></div>
       <div class="ii-meta">${when} · <b>${esc(nameOf(s.payerId))}</b>님 결제 · ${CUR[cur].name}</div>
     </div><div class="ii-amt num debit">${fmt(sh.amount,cur)}</div></div>
     <div class="ii-actions">
-      <button class="btn primary" data-act="accept" data-sid="${s.id}">수락</button>
-      <button class="btn" data-act="reqedit" data-sid="${s.id}">수정 요청</button>
+      <button class="btn" data-act="reqedit" data-sid="${s.id}" style="flex:1">💬 금액 수정 제안</button>
     </div></div>`;
   if(it.type==="approve_edit")return`<div class="inbox-item">
     <div class="ii-top"><div>
@@ -578,278 +576,4 @@ function createHTML(){
 function historyHTML(){
   const ADMIN="pm09"; // 정직한 = 관리자
   const isAdmin=state.me===ADMIN;
-  const allSplits=[...state.record.splits].sort((a,b)=>
-    (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
-  // 내가 관련된 것만 (관리자는 전체)
-  const splits=isAdmin?allSplits:
-    allSplits.filter(s=>s.payerId===state.me||s.shares.some(sh=>sh.memberId===state.me));
-  if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낼게 탭에서 정산을 등록해보세요!</div>`;
-  return splits.map(s=>{
-    const cur=s.currency,total=s.shares.reduce((t,x)=>t+x.amount,0);
-    const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
-    const canDelete=s.payerId===state.me||isAdmin;
-    return`<div class="receipt">
-      <div class="r-top">
-        <div>
-          <div class="r-desc">${esc(s.desc)}${isAdmin&&s.payerId!==state.me
-            ?` <span class="badge pend" style="font-size:.56rem;padding:1px 5px">관리자뷰</span>`:""}</div>
-          <div class="r-meta">${when} · ${CUR[cur].name} · <b>${esc(nameOf(s.payerId))}</b> 결제</div>
-        </div>
-        <div class="r-total num">${fmt(total,cur)}</div>
-      </div>
-      ${s.shares.map(sh=>{
-        const isMe=sh.memberId===state.me;
-        const isPayer=sh.memberId===s.payerId;
-        const b=sh.status==="accepted"?`<span class="badge acc">확정</span>`
-          :sh.status==="edit_requested"?`<span class="badge edit">수정요청</span>`
-          :isPayer?"":`<span class="badge pend">대기</span>`;
-        const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
-        return`<div>
-          <div class="share-line">
-            <span class="pname">${esc(nameOf(sh.memberId))}${isPayer?" (결제자)":""} ${b}</span>
-            <span class="dots"></span>
-            <span class="num" style="font-size:.86rem">${fmt(amt,cur)}</span>
-          </div>
-          ${isMe&&!isPayer&&sh.status==="pending"
-            ?`<div style="margin:4px 0 8px 28px">
-                <button class="btn primary" style="padding:7px 16px;font-size:.78rem;flex:none;width:auto"
-                  data-act="accept" data-sid="${s.id}">✓ 수락하기</button>
-              </div>`:""}
-        </div>`;
-      }).join("")}
-      ${canDelete?`<button class="del" data-act="delsplit" data-sid="${s.id}">삭제</button>`:""}
-    </div>`;
-  }).join("");
-}
-
-/* ── 일행 ── */
-function membersHTML(){
-  if(!mdraft)mdraft=state.record.members.map(m=>({...m}));
-  return`<div class="card">
-    <div class="sec-h">우리 일행 · ${mdraft.length}명</div>
-    <p class="hint" style="margin:-4px 0 14px;line-height:1.6">
-      📌 프리셋 멤버(잠금 표시)는 이름을 삭제할 수 없어요.<br>닉네임을 따로 설정하고 싶으면 아래에서 수정해주세요.
-    </p>
-    ${mdraft.map((m,i)=>{
-      const isPreset=PRESET.find(p=>p.id===m.id);
-      return`<div class="mrow">
-        <span class="mnum">${String(i+1).padStart(2,"0")}</span>
-        <input data-mname="${m.id}" placeholder="${isPreset?m.name:"닉네임"}" value="${esc(m.nick||m.name)}">
-        ${isPreset?`<span class="preset-lock" title="프리셋 멤버">🔒</span>`
-          :`<button class="mx" data-act="mremove" data-mid="${m.id}">✕</button>`}
-      </div>`;}).join("")}
-    <div style="display:flex;justify-content:space-between;margin-top:14px;gap:8px">
-      <button class="btn" style="flex:0 0 auto" data-act="madd">+ 일행 추가</button>
-      <button class="btn primary" style="flex:0 0 auto" data-act="msave">저장하기</button>
-    </div>
-  </div>`;
-}
-
-/* ── 로그인 ── */
-function renderLogin(){
-  const members=state.record.members;
-  // 프리셋 기준으로 정렬 (프리셋 순 → 나머지)
-  const presetIds=PRESET.map(p=>p.id);
-  const sorted=[
-    ...PRESET.map(p=>members.find(m=>m.id===p.id)||{id:p.id,name:p.name,pin:null}),
-    ...members.filter(m=>!presetIds.includes(m.id)),
-  ];
-
-  if(lStep==="pick"){
-    $("#app").innerHTML=`
-    <div class="login-wrap">
-      <div class="l-flag">🇮🇹</div>
-      <div class="l-brand">IL CONTO</div>
-      <div class="l-tag">어느 분이세요? 이름을 눌러주세요 👇</div>
-      <div class="l-card">
-        <div class="l-card-h">👤 일행 선택</div>
-        ${lErr?`<div class="l-err">${lErr}</div>`:""}
-        <div class="pick-grid">
-          ${sorted.map(m=>{
-            const claimed=!!(m.pin);
-            return`<button class="pick-btn ${claimed?"claimed":""}" data-pickid="${m.id}" data-pickname="${esc(m.name)}" data-haspin="${claimed}">
-              ${esc(m.nick||m.name)}</button>`;
-          }).join("")}
-        </div>
-
-      </div>
-    </div>`;
-    $("#app").querySelectorAll(".pick-btn").forEach(b=>{
-      b.addEventListener("click",()=>{
-        lPick={id:b.dataset.pickid,name:b.dataset.pickname,hasPin:b.dataset.haspin==="true"};
-        lStep="pin";lPin="";lErr="";renderLogin();
-      });
-    });
-  } else {
-    // PIN 입력 단계
-    $("#app").innerHTML=`
-    <div class="login-wrap">
-      <div class="l-flag">🇮🇹</div>
-      <div class="l-brand">IL CONTO</div>
-      <div class="l-card">
-        ${lErr?`<div class="l-err">${lErr}</div>`:""}
-        <div class="l-selected-name">${esc(lPick.name)}</div>
-        <div class="l-pin-sub">${lPick.hasPin?"PIN을 입력해주세요 🔐":"처음이시군요! PIN 4자리를 설정해주세요"}</div>
-        <input id="pinEl" type="password" inputmode="numeric" maxlength="4" placeholder="• • • •" class="l-pin-input" value="${lPin}" autocomplete="off"/>
-        <button class="l-submit" id="pinSubmit">밀라노 장부 입장 🚀</button>
-        <button class="l-back" id="pinBack">← 다시 선택</button>
-      </div>
-    </div>`;
-    const pinEl=$("#pinEl");
-    pinEl.addEventListener("input",()=>{lPin=pinEl.value.replace(/\D/g,"").slice(0,4);pinEl.value=lPin;});
-    pinEl.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
-    $("#pinSubmit").addEventListener("click",doLogin);
-    $("#pinBack").addEventListener("click",()=>{lStep="pick";lErr="";lPin="";renderLogin();});
-    pinEl.focus();
-  }
-}
-
-async function doLogin(){
-  const pin=lPin;
-  if(pin.length!==4||!/^\d{4}$/.test(pin)){lErr="PIN은 숫자 4자리여야 해요.";return renderLogin();}
-
-  // 최신 레코드 가져오기
-  let rec;
-  try{rec=await fetchRecord();}
-  catch(e){rec=JSON.parse(JSON.stringify(state.record));}
-  mergePresets(rec);
-
-  const member=rec.members.find(m=>m.id===lPick.id);
-  if(!member){lErr="멤버를 찾을 수 없어요. 다시 시도해주세요.";return renderLogin();}
-
-  if(member.pin){
-    // 기존 PIN 검증
-    if(member.pin!==pin){lErr="PIN이 맞지 않아요 🔐";return renderLogin();}
-    state.me=member.id;
-    state.record=rec;saveCache();
-    lStep="pick";lPin="";lErr="";
-    state.tab="home";render();
-  } else {
-    // 신규 PIN 설정 — 서버에 저장
-    member.pin=pin;
-    state.record=rec;
-    try{
-      await putRecord(rec);
-      saveCache();
-      state.me=member.id;
-      lStep="pick";lPin="";lErr="";
-      state.tab="home";render();
-      toast("PIN이 설정됐어요 ✓");
-    }catch(e){
-      lErr="저장에 실패했어요. 네트워크를 확인해주세요.";renderLogin();
-    }
-  }
-}
-
-/* ─── 바인딩 ─── */
-function bind(){
-  const app=$("#app");
-  app.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{
-    state.tab=b.dataset.tab;if(b.dataset.tab!=="create"){form=null;pull();}render();}));
-  app.querySelectorAll("[data-f]").forEach(el=>el.addEventListener("input",()=>{form[el.dataset.f]=el.value;}));
-  app.querySelectorAll("[data-cur]").forEach(b=>b.addEventListener("click",()=>{form.currency=b.dataset.cur;render();}));
-  app.querySelectorAll("[data-m]").forEach(b=>b.addEventListener("click",()=>{form.method=b.dataset.m;render();}));
-  app.querySelectorAll("[data-day]").forEach(b=>b.addEventListener("click",()=>{form.day=b.dataset.day;render();}));
-  app.querySelectorAll("[data-time]").forEach(b=>b.addEventListener("click",()=>{form.timeSlot=b.dataset.time;render();}));
-  app.querySelectorAll("[data-toggle]").forEach(el=>el.addEventListener("click",()=>{form.checked[el.dataset.toggle]=!form.checked[el.dataset.toggle];render();}));
-  app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
-  app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.nick=el.value;}}));
-  app.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handleAct(b.dataset.act,b.dataset)));
-}
-
-async function handleAct(act,d){
-  const sid=d.sid;
-  switch(act){
-    case "switch":state.me=null;lStep="pick";lErr="";lPin="";saveCache();render();break;
-    case "pull":toast("동기화 중…");await pull();toast("최신 상태예요 ✓");break;
-    case "createsplit":return createSplit();
-    case "accept":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);if(!s)return;
-        const sh=s.shares.find(x=>x.memberId===state.me);if(sh){sh.status="accepted";sh.proposed=null;}});
-      toast("수락했어요 ✓");break;
-    case "reqedit":{
-      const s=state.record.splits.find(x=>x.id===sid);
-      const sh=s?.shares.find(x=>x.memberId===state.me);const cur=s.currency;
-      const v=prompt(`수정할 내 금액 (${CUR[cur].sym})`,(sh.amount/CUR[cur].factor).toString());
-      if(v===null)break;const minor=toMinor(v,cur);
-      await mutate(rec=>{const ss=rec.splits.find(x=>x.id===sid);
-        const ssh=ss.shares.find(x=>x.memberId===state.me);ssh.status="edit_requested";ssh.proposed=minor;});
-      toast("수정 요청을 보냈어요");break;}
-    case "canceledit":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);
-        const sh=s.shares.find(x=>x.memberId===state.me);sh.status="pending";sh.proposed=null;});
-      toast("요청을 취소했어요");break;
-    case "approveedit":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);
-        const sh=s.shares.find(x=>x.memberId===d.mid);sh.amount=sh.proposed;sh.proposed=null;sh.status="accepted";});
-      toast("수정 금액을 반영했어요 ✓");break;
-    case "rejectedit":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);
-        const sh=s.shares.find(x=>x.memberId===d.mid);sh.proposed=null;sh.status="pending";});
-      toast("거절했어요. 대기중으로 돌아가요");break;
-    case "delsplit":
-      if(!confirm("이 정산을 삭제할까요?"))break;
-      await mutate(rec=>{rec.splits=rec.splits.filter(x=>x.id!==sid);});toast("삭제했어요");break;
-    case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null,nick:null});render();break;
-    case "mremove":
-      if(PRESET.find(p=>p.id===d.mid)){toast("프리셋 멤버는 삭제할 수 없어요");break;}
-      mdraft=mdraft.filter(x=>x.id!==d.mid);render();break;
-    case "msave":
-      await mutate(rec=>{
-        mdraft.forEach(dm=>{
-          const ex=rec.members.find(x=>x.id===dm.id);
-          if(ex){ex.nick=dm.nick||null;}
-          else rec.members.push({id:dm.id,name:dm.name||"이름없음",pin:null,nick:dm.nick||null});
-        });
-        // 프리셋 멤버는 삭제 불가, 나머지만 필터
-        const presetIds=PRESET.map(p=>p.id);
-        rec.members=rec.members.filter(m=>presetIds.includes(m.id)||mdraft.some(dm=>dm.id===m.id));
-      });mdraft=null;toast("저장했어요 ✓");break;
-  }
-}
-
-async function createSplit(){
-  ensureForm();const cur=form.currency;
-  const ids=state.record.members.filter(m=>form.checked[m.id]).map(m=>m.id);
-  if(!form.desc.trim()){form.err="내용을 적어주세요.";return render();}
-  if(!ids.length){form.err="참여자를 한 명 이상 선택해주세요.";return render();}
-  let shares=[];
-  if(form.method==="equal"){
-    const total=toMinor(form.total,cur);
-    if(total<=0){form.err="총액을 입력해주세요.";return render();}
-    const parts=splitEqual(total,ids.length);
-    shares=ids.map((id,i)=>({memberId:id,amount:parts[i],status:id===state.me?"accepted":"pending",proposed:null}));
-  } else {
-    shares=ids.map(id=>({memberId:id,amount:toMinor(form.amounts[id]||0,cur),
-      status:id===state.me?"accepted":"pending",proposed:null}));
-    if(shares.reduce((t,x)=>t+x.amount,0)<=0){form.err="각 참여자 금액을 입력해주세요.";return render();}
-  }
-  const split={id:uid(),payerId:state.me,currency:cur,desc:form.desc.trim(),
-    date:form.day,timeSlot:form.timeSlot,method:form.method,shares,createdAt:Date.now()};
-  const ok=await mutate(rec=>rec.splits.push(split));
-  if(ok){form=null;state.tab="home";toast("정산 요청을 보냈어요 🎉");render();}
-}
-
-/* ─── 화면 에러 표시 (모바일 디버그용) ─── */
-window.onerror = function(msg, src, line) {
-  document.getElementById("app").innerHTML =
-    '<div style="padding:24px;font-family:monospace;font-size:13px;background:#fff;' +
-    'color:#c00;border-radius:12px;margin:20px"><b>JS 오류 (스크린샷 찍어줘요)</b><br><br>' +
-    msg + '<br><br>Line: ' + line + '</div>';
-};
-
-/* ─── BOOT ─── */
-try {
-  loadCache();
-  mergePresets(state.record);
-  render();
-  pull();
-} catch(e) {
-  document.getElementById("app").innerHTML =
-    '<div style="padding:24px;font-family:monospace;font-size:13px;background:#fff;' +
-    'color:#c00;border-radius:12px;margin:20px"><b>부트 오류 (스크린샷 찍어줘요)</b><br><br>' +
-    e.message + '</div>';
-}
-</script>
-</body>
-</html>
+  const allSplits=[...state.record.splits].sort((a,b)=&
