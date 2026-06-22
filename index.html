@@ -113,7 +113,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .box.on:after{content:"✓";color:#fff;font-size:13px;font-weight:900;position:absolute;left:3px;top:-1px;}
 .pname{font-size:.92rem;font-weight:700;}
 .me-tag{font-size:.58rem;background:var(--sun);color:var(--ink);padding:1px 7px;border-radius:999px;font-weight:900;}
-.ghost-tag{font-size:.58rem;background:var(--cream);color:var(--ink-soft);padding:1px 7px;border-radius:999px;font-weight:700;border:1px solid var(--line);}
 .amt{width:108px;font-size:.9rem;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;text-align:right;font-family:ui-monospace,monospace;font-weight:700;}
 .dots{flex:1;border-bottom:1.5px dotted var(--line);margin:0 8px;transform:translateY(-3px);}
 .total-line{display:flex;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-weight:900;}
@@ -136,6 +135,7 @@ input,select{font-family:'Nunito',sans-serif;}
 .mrow{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
 .mnum{font-family:ui-monospace,monospace;font-size:.74rem;color:var(--ink-soft);width:22px;font-weight:700;}
 .mrow input{flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-weight:700;}
+.mrow input:disabled{background:#f9f9f9;color:#888;}
 .mx{background:none;border:none;color:var(--ink-soft);opacity:.45;font-size:.9rem;}
 .preset-lock{font-size:.72rem;color:var(--ink-soft);padding:0 6px;}
 
@@ -170,11 +170,6 @@ input,select{font-family:'Nunito',sans-serif;}
   font-size:.88rem;font-weight:700;color:var(--ink-soft);margin-top:8px;}
 .l-err{background:#FFE9E4;color:var(--debit);border-radius:10px;padding:9px 14px;
   font-size:.82rem;margin-bottom:12px;font-weight:700;text-align:center;}
-.nick-hints{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
-.nick-hints-h{font-size:.66rem;font-weight:800;color:var(--ink-soft);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;}
-.nick-chips{display:flex;flex-wrap:wrap;gap:6px;}
-.nick-chip{background:var(--cream);border:1px solid var(--line);border-radius:999px;
-  padding:4px 10px;font-size:.75rem;font-weight:700;color:var(--ink-soft);}
 
 .receipt-expanded{max-height:1000px !important;overflow:visible;}
 .receipt-details{max-height:0;overflow:hidden;transition:max-height .25s ease;background:var(--cream);margin:0 -16px -16px;padding:0 16px}
@@ -244,8 +239,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toMinor=(v,cur)=>{const n=parseFloat(String(v).replace(",","."));return isNaN(n)?0:Math.round(n*CUR[cur].factor);};
 const fmt=(minor,cur)=>{const c=CUR[cur];return c.sym+(minor/c.factor).toLocaleString("ko-KR",{minimumFractionDigits:c.dp,maximumFractionDigits:c.dp});};
-const nameOf=id=>{const m=state.record.members.find(m=>m.id===id);return m?(m.nick||m.name):"(?)"};
-const fullNameOf=id=>{const m=state.record.members.find(m=>m.id===id);return m?m.name:"(?)"};
+const nameOf=id=>{const m=state.record.members.find(m=>m.id===id);return m?m.name:"(?)"};
 function splitEqual(total,n){if(n<=0)return[];const base=Math.floor(total/n);let rem=total-base*n;
   return Array.from({length:n},()=>{const e=rem>0?1:0;if(rem>0)rem--;return base+e;});}
 const ctaObj=()=>CTA_POOL[Math.floor(Date.now()/60000)%CTA_POOL.length];
@@ -288,7 +282,7 @@ function mergePresets(rec){
   let changed=false;
   PRESET.forEach(p=>{
     if(!rec.members.find(m=>m.id===p.id)){
-      rec.members.push({id:p.id,name:p.name,pin:null,nick:null});
+      rec.members.push({id:p.id,name:p.name,pin:null});
       changed=true;
     }
   });
@@ -387,29 +381,6 @@ function spendingByDay(){
   return DAYS.map(d=>{let t=0;
     state.record.splits.filter(s=>s.currency==="EUR"&&s.date===d.date).forEach(s=>{
       s.shares.forEach(sh=>{if(sh.status==="confirmed")t+=sh.amount;});});return t;});
-}
-
-/* ─── CHART ─── */
-function chartSVG(){
-  const vals=spendingByDay();
-  const maxVal=Math.max(...vals,1);
-  const W=316,H=90,pl=6,pr=6,pt=12,pb=22;
-  const bw=Math.floor((W-pl-pr)/DAYS.length);const gap=5;
-  const bars=DAYS.map((d,i)=>{
-    const h=Math.max(3,Math.round((vals[i]/maxVal)*(H-pt-pb)));
-    const x=pl+i*bw+gap/2;const y=pt+(H-pt-pb)-h;
-    const isEmpty=vals[i]===0;
-    return `<defs><linearGradient id="bg${i}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${isEmpty?"#EEE5DD":"#E8694A"}"/>
-      <stop offset="100%" stop-color="${isEmpty?"#EEE5DD":"#F2B134"}"/>
-    </linearGradient></defs>
-    <rect x="${x}" y="${y}" width="${bw-gap}" height="${h}" fill="url(#bg${i})" rx="5"/>
-    <text x="${x+(bw-gap)/2}" y="${H-4}" text-anchor="middle" font-size="9"
-      font-family="Nunito,sans-serif" font-weight="800" fill="var(--ink-soft)">${d.label.replace("일","")}</text>
-    ${vals[i]>0?`<text x="${x+(bw-gap)/2}" y="${y-4}" text-anchor="middle" font-size="8"
-      font-family="Nunito,sans-serif" font-weight="900" fill="var(--terra)">€${(vals[i]/100).toFixed(0)}</text>`:""}`;
-  }).join("");
-  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" height="${H}">${bars}</svg>`;
 }
 
 /* ─── RENDER ─── */
@@ -549,7 +520,9 @@ function inboxItemHTML(it){
 /* ── 새 정산 ── */
 function ensureForm(){
   if(form)return;
-  const checked={};state.record.members.forEach(m=>checked[m.id]=false);
+  const checked={};
+  // 기본적으로 본인은 선택 상태로 시작합니다.
+  state.record.members.forEach(m=>{ checked[m.id] = (m.id === state.me); });
   // 오늘 날짜 찾기
   const today=new Date().toISOString().slice(0,10);
   const todayDay=DAYS.find(d=>d.date===today)||DAYS[0];
@@ -599,11 +572,10 @@ function createHTML(){
       <div class="hint" style="margin-bottom:8px">참여자 ${ids.length}명 선택</div>
       ${state.record.members.map(m=>{
         const isMe=m.id===state.me;
-        const isGhost=!m.pin;
         return`<div class="prow">
           <label class="chk" data-toggle="${m.id}">
             <span class="box ${form.checked[m.id]?"on":""}"></span>
-            <span class="pname">${esc(m.nick||m.name)}${isMe?` <span class="me-tag">나</span>`:""}${isGhost&&!isMe?` <span class="ghost-tag">미로그인</span>`:""}</span>
+            <span class="pname">${esc(m.name)}${isMe?` <span class="me-tag">나</span>`:""}</span>
           </label>
           ${form.method==="custom"&&form.checked[m.id]
             ?`<input class="amt" inputmode="decimal" placeholder="0" data-amt="${m.id}" value="${esc(form.amounts[m.id]||"")}">`:""}
@@ -617,24 +589,25 @@ function createHTML(){
 
 /* ── 영수증 ── */
 function historyHTML(){
-  const ADMIN="pm09";
-  const isAdmin=state.me===ADMIN;
+  // 전체 영수증을 최신순으로 정렬
   const allSplits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
-  const splits=isAdmin?allSplits:
-    allSplits.filter(s=>s.payerId===state.me||s.shares.some(sh=>sh.memberId===state.me));
-  if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낄게 탭에서 정산을 등록해보세요!</div>`;
+  
+  // 본인이 결제했거나 분담자에 포함된 영수증만 필터링합니다.
+  const splits = allSplits.filter(s => s.payerId === state.me || s.shares.some(sh => sh.memberId === state.me));
+
+  if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낼게 탭에서 정산을 등록해보세요!</div>`;
+  
   return splits.map(s=>{
     const cur=s.currency,total=s.shares.reduce((t,x)=>t+x.amount,0);
     const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
-    const canDelete=s.payerId===state.me||isAdmin;
+    const canDelete=s.payerId===state.me;
     const recId="rec"+s.id;
     return`<div class="receipt" id="${recId}">
       <button class="receipt-toggle" data-act="toggle" data-rid="${recId}">⌄</button>
       <div class="r-top">
         <div>
-          <div class="r-desc">${esc(s.desc)}${isAdmin&&s.payerId!==state.me
-            ?` <span class="badge pend" style="font-size:.56rem;padding:1px 5px">관리자뷰</span>`:""}</div>
+          <div class="r-desc">${esc(s.desc)}</div>
           <div class="r-meta">${when} · ${CUR[cur].name}</div>
         </div>
         <div class="r-total num">${fmt(total,cur)}</div>
@@ -643,13 +616,12 @@ function historyHTML(){
         <div style="border-top:1px dashed var(--line);padding-top:10px;margin-top:8px">
           <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">결제자</div>
           <div class="share-line" style="padding:0 0 10px;margin-bottom:10px;border-bottom:1px solid var(--line)">
-            <span class="pname"><b>${esc(nameOf(s.payerId))}</b></span>
+            <span class="pname"><b>${esc(nameOf(s.payerId))}</b>${s.payerId===state.me?" <span class='me-tag'>나</span>":""}</span>
             <span class="dots"></span>
             <span class="num">${fmt(total,cur)}</span>
           </div>
-          <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">분담자</div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">분담자 전체</div>
           ${s.shares.map(sh=>{
-            if(sh.memberId===s.payerId)return "";
             const isMe=sh.memberId===state.me;
             const b=sh.status==="edit_requested"?`<span class="badge edit" style="font-size:.6rem">수정요청</span>`:"";
             const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
@@ -672,13 +644,13 @@ function membersHTML(){
   return`<div class="card">
     <div class="sec-h">우리 일행 · ${mdraft.length}명</div>
     <p class="hint" style="margin:-4px 0 14px;line-height:1.6">
-      📌 프리셋 멤버(잠금 표시)는 이름을 삭제할 수 없어요.<br>닉네임을 따로 설정하고 싶으면 아래에서 수정해주세요.
+      📌 프리셋 멤버(잠금 표시)는 이름을 변경하거나 삭제할 수 없어요.<br>추가 인원만 따로 관리할 수 있습니다.
     </p>
     ${mdraft.map((m,i)=>{
       const isPreset=PRESET.find(p=>p.id===m.id);
       return`<div class="mrow">
         <span class="mnum">${String(i+1).padStart(2,"0")}</span>
-        <input data-mname="${m.id}" placeholder="${isPreset?m.name:"닉네임"}" value="${esc(m.nick||m.name)}">
+        <input data-mname="${m.id}" placeholder="이름" value="${esc(m.name)}" ${isPreset?"disabled":""}>
         ${isPreset?`<span class="preset-lock" title="프리셋 멤버">🔒</span>`
           :`<button class="mx" data-act="mremove" data-mid="${m.id}">✕</button>`}
       </div>`;}).join("")}
@@ -712,10 +684,9 @@ function renderLogin(){
           ${sorted.map(m=>{
             const claimed=!!(m.pin);
             return`<button class="pick-btn ${claimed?"claimed":""}" data-pickid="${m.id}" data-pickname="${esc(m.name)}" data-haspin="${claimed}">
-              ${esc(m.nick||m.name)}</button>`;
+              ${esc(m.name)}</button>`;
           }).join("")}
         </div>
-
       </div>
     </div>`;
     $("#app").querySelectorAll(".pick-btn").forEach(b=>{
@@ -769,7 +740,7 @@ async function doLogin(){
     lStep="pick";lPin="";lErr="";
     state.tab="home";render();
   } else {
-    // 신규 PIN 설정 — 서버에 저장
+    // 신규 PIN 설정
     member.pin=pin;
     state.record=rec;
     try{
@@ -797,11 +768,12 @@ function bind(){
   app.querySelectorAll("[data-time]").forEach(b=>b.addEventListener("click",()=>{form.timeSlot=b.dataset.time;render();}));
   app.querySelectorAll("[data-toggle]").forEach(el=>el.addEventListener("click",()=>{form.checked[el.dataset.toggle]=!form.checked[el.dataset.toggle];render();}));
   app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
-  app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.nick=el.value;}}));
+  app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.name=el.value;}}));
+  
   // receipt 클릭해서 펼치기
   app.querySelectorAll(".receipt").forEach(r=>{
     r.addEventListener("click",(e)=>{
-      if(e.target.closest(".del"))return; // 삭제 버튼은 클릭 처리
+      if(e.target.closest(".del"))return; // 삭제 버튼은 클릭 처리 분리
       const id=r.id;if(id)r.classList.toggle("expanded");
     });
   });
@@ -839,7 +811,7 @@ async function handleAct(act,d){
     case "delsplit":
       if(!confirm("이 정산을 삭제할까요?"))break;
       await mutate(rec=>{rec.splits=rec.splits.filter(x=>x.id!==sid);});toast("삭제했어요");break;
-    case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null,nick:null});render();break;
+    case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null});render();break;
     case "mremove":
       if(PRESET.find(p=>p.id===d.mid)){toast("프리셋 멤버는 삭제할 수 없어요");break;}
       mdraft=mdraft.filter(x=>x.id!==d.mid);render();break;
@@ -847,10 +819,9 @@ async function handleAct(act,d){
       await mutate(rec=>{
         mdraft.forEach(dm=>{
           const ex=rec.members.find(x=>x.id===dm.id);
-          if(ex){ex.nick=dm.nick||null;}
-          else rec.members.push({id:dm.id,name:dm.name||"이름없음",pin:null,nick:dm.nick||null});
+          if(ex && !PRESET.find(p=>p.id===dm.id)){ex.name=dm.name||"이름없음";} // 커스텀 멤버만 이름 변경 반영
+          else if(!ex) rec.members.push({id:dm.id,name:dm.name||"이름없음",pin:null});
         });
-        // 프리셋 멤버는 삭제 불가, 나머지만 필터
         const presetIds=PRESET.map(p=>p.id);
         rec.members=rec.members.filter(m=>presetIds.includes(m.id)||mdraft.some(dm=>dm.id===m.id));
       });mdraft=null;toast("저장했어요 ✓");break;
@@ -883,7 +854,7 @@ async function createSplit(){
   }
 }
 
-/* ─── 화면 에러 표시 (모바일 디버그용) ─── */
+/* ─── 화면 에러 표시 ─── */
 window.onerror = function(msg, src, line) {
   document.getElementById("app").innerHTML =
     '<div style="padding:24px;font-family:monospace;font-size:13px;background:#fff;' +
