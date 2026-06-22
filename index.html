@@ -144,19 +144,6 @@ button,input,select{font-family:'Nunito',sans-serif;}
   font-size:.88rem;font-weight:800;color:var(--ink);text-align:center;}
 .l-btn:active{background:var(--cream);}
 .l-btn.claimed::after{content:" ✓";color:var(--credit);font-size:.7rem;}
-.l-pin-wrap{display:none;}
-.l-name-sel{font-size:1.4rem;font-weight:900;color:var(--terra);text-align:center;margin-bottom:6px;}
-.l-pin-sub{font-size:.84rem;color:var(--soft);text-align:center;margin-bottom:16px;font-weight:600;}
-.l-pin{width:100%;font-size:1.5rem;padding:14px;border:2px solid var(--line);border-radius:13px;
-  background:#fff;letter-spacing:.35em;text-align:center;font-weight:900;margin-bottom:12px;}
-.l-pin:focus{outline:2px solid var(--terra);border-color:transparent;}
-.l-go{width:100%;background:linear-gradient(135deg,var(--terra),#F08050);color:#fff;border:none;
-  border-radius:13px;padding:15px;font-size:1rem;font-weight:900;
-  box-shadow:0 4px 12px rgba(232,105,74,.28);}
-.l-back{width:100%;background:none;border:1.5px solid var(--line);border-radius:11px;
-  padding:11px;font-size:.88rem;font-weight:700;color:var(--soft);margin-top:8px;}
-.l-err{background:#FFE9E4;color:var(--debit);border-radius:10px;padding:9px 13px;
-  font-size:.82rem;margin-bottom:12px;font-weight:700;text-align:center;}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
@@ -193,10 +180,7 @@ let state = {splits:[], me:null};  // me = 로그인한 사람 이름
 let tab = "home";
 let form = null;
 let cur = "EUR";
-let lStep = "pick"; // "pick" | "pin"
-let lPick = null;   // 선택한 이름
-let lPin = "";
-let lErr = "";
+
 
 /* ─── UTILS ─── */
 const $ = s => document.querySelector(s);
@@ -507,91 +491,24 @@ function historyHTML(isAdmin) {
 
 /* ─── 로그인 ─── */
 function renderLogin() {
-  const members = state.splits.reduce((acc,s)=>{
-    if(!acc.includes(s.payer)) acc.push(s.payer);
-    s.shares.forEach(sh=>{if(!acc.includes(sh.name)) acc.push(sh.name);});
-    return acc;
-  },[]);
-  const pinned = members; // PIN 있는 사람 체크는 서버에서
-
-  if(lStep==="pick") {
-    $("#app").innerHTML=`
-    <div class="login">
-      <div class="l-flag">🇮🇹</div>
-      <div class="l-brand">IL CONTO</div>
-      <div class="l-sub">밀라노 같이 온 우리끼리 정산 장부<br>이름을 눌러 입장하세요 👇</div>
-      <div class="l-card">
-        <div class="l-card-h">어느 분이세요?</div>
-        ${lErr?`<div class="l-err">${lErr}</div>`:""}
-        <div class="l-grid">
-          ${PRESET.map(p=>`<button class="l-btn" data-name="${esc(p)}">${esc(p)}</button>`).join("")}
-        </div>
+  $("#app").innerHTML=`
+  <div class="login">
+    <div class="l-flag">🇮🇹</div>
+    <div class="l-brand">IL CONTO</div>
+    <div class="l-sub">밀라노 같이 온 우리끼리 정산 장부<br>이름을 눌러 입장하세요 👇</div>
+    <div class="l-card">
+      <div class="l-card-h">어느 분이세요?</div>
+      <div class="l-grid">
+        ${PRESET.map(p=>`<button class="l-btn" data-name="${esc(p)}">${esc(p)}</button>`).join("")}
       </div>
-    </div>`;
-    $("#app").querySelectorAll(".l-btn").forEach(b=>b.addEventListener("click",()=>{
-      lPick=b.dataset.name; lStep="pin"; lPin=""; lErr=""; renderLogin();
-    }));
-  } else {
-    $("#app").innerHTML=`
-    <div class="login">
-      <div class="l-flag">🇮🇹</div>
-      <div class="l-brand">IL CONTO</div>
-      <div class="l-card">
-        ${lErr?`<div class="l-err">${lErr}</div>`:""}
-        <div class="l-name-sel">${esc(lPick)}</div>
-        <div class="l-pin-sub" id="pinSub">잠시만요, 확인 중…</div>
-        <input id="pinInp" class="l-pin" type="password" inputmode="numeric"
-          maxlength="4" placeholder="• • • •" autocomplete="off"/>
-        <button class="l-go" id="pinGo">입장하기 →</button>
-        <button class="l-back" id="pinBack">← 다시 선택</button>
-      </div>
-    </div>`;
-    // 서버에서 PIN 여부 확인
-    checkPin(lPick);
-    const inp=$("#pinInp");
-    inp.addEventListener("input",()=>{lPin=inp.value.replace(/\D/g,"").slice(0,4);inp.value=lPin;});
-    inp.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
-    $("#pinGo").addEventListener("click",doLogin);
-    $("#pinBack").addEventListener("click",()=>{lStep="pick";lErr="";renderLogin();});
-    inp.focus();
-  }
+    </div>
+  </div>`;
+  $("#app").querySelectorAll(".l-btn").forEach(b=>b.addEventListener("click",()=>{
+    state.me=b.dataset.name; saveCache(); tab="home"; render(); pull();
+  }));
 }
 
-let _pins = {}; // {이름: pin} 캐시
-async function checkPin(name) {
-  try {
-    const r = await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY},cache:"no-store"});
-    const j = await r.json();
-    const d = j.record||{};
-    state.splits = Array.isArray(d.splits)?d.splits:[];
-    _pins = d.pins||{};
-    saveCache();
-  } catch(e){}
-  const sub = $("#pinSub");
-  if(sub) sub.textContent = _pins[name]?"비밀번호를 입력해주세요 🔐":"처음이시군요! 비밀번호 4자리를 설정해주세요";
-}
 
-async function doLogin() {
-  const pin = lPin;
-  if(pin.length!==4||!/^\d{4}$/.test(pin)){lErr="숫자 4자리를 입력해주세요.";return renderLogin();}
-  if(_pins[lPick]) {
-    if(_pins[lPick]!==pin){lErr="비밀번호가 맞지 않아요 🔐";return renderLogin();}
-  } else {
-    // 신규 PIN 설정
-    try {
-      const r = await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY},cache:"no-store"});
-      const j = await r.json(); const d = j.record||{};
-      const pins = d.pins||{}; pins[lPick]=pin;
-      await fetch(API,{method:"PUT",
-        headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY},
-        body:JSON.stringify({splits:d.splits||[], pins})});
-      _pins=pins;
-    } catch(e){lErr="저장 실패, 다시 시도해주세요.";return renderLogin();}
-    toast("비밀번호가 설정됐어요 ✓");
-  }
-  state.me=lPick; lStep="pick"; lPin=""; lErr=""; saveCache();
-  tab="home"; render(); pull();
-}
 
 /* ─── 이벤트 ─── */
 function bindMain() {
@@ -625,7 +542,7 @@ function bindMain() {
       const j=await r.json(); const d=j.record||{};
       await fetch(API,{method:"PUT",
         headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY},
-        body:JSON.stringify({splits:next, pins:d.pins||_pins})});
+        body:JSON.stringify({splits:next})});
       toast("삭제됐어요");
     }catch(e){toast("삭제 실패");}
   }));
@@ -686,7 +603,7 @@ async function handleCreate() {
   try {
     const r=await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY},cache:"no-store"});
     const j=await r.json(); const d=j.record||{};
-    await push([...( Array.isArray(d.splits)?d.splits:state.splits.slice(0,-1)), newSplit]);
+    await push([...(Array.isArray(d.splits)?d.splits:state.splits.slice(0,-1)), newSplit]);
     // 위에서 이미 local에 추가했으니 서버 최신 반영
     const r2=await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY},cache:"no-store"});
     const j2=await r2.json(); const d2=j2.record||{};
