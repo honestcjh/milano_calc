@@ -69,14 +69,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .w-cell .val{font-size:1.05rem;font-weight:900;margin-top:2px;}
 .w-net{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:800;}
 
-/* ── INBOX ── */
-.inbox-item{background:var(--card);border-radius:14px;padding:14px;margin-bottom:9px;box-shadow:var(--shadow-sm);}
-.ii-top{display:flex;justify-content:space-between;gap:8px;}
-.ii-desc{font-weight:800;font-size:.95rem;}
-.ii-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
-.ii-amt{font-weight:900;font-size:1.05rem;white-space:nowrap;}
-.ii-actions{display:flex;gap:7px;margin-top:11px;}
-
 /* ── FORM ── */
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
 .field>span{font-size:.72rem;color:var(--ink-soft);font-weight:800;}
@@ -196,17 +188,10 @@ const CUR={
   TRY:{sym:"₺",dp:2,factor:100,name:"리라"},
 };
 const CUR_ORDER=["EUR","KRW","TRY"];
-const CTA_POOL=[
-  {big:"이번엔 제 카드로 하시죠 →",sub:"어서 쓰세요, 여기서 나눠요"},
-  {big:"잠깐, 제가 긁겠습니다 →",sub:"나중에 여기서 정확하게 정산해요"},
-  {big:"오늘은 제가 한 번 쏠게요 →",sub:"일단 내고 나중에 나눠요"},
-  {big:"이번엔 제가 결제 해보겠습니다 →",sub:"영수증은 여기 앱에 남겨둘게요"},
-  {big:"오늘 식사, 제가 책임지겠습니다 →",sub:"누가 얼마씩인지 여기서 정해요"},
-];
 
 /* ─── STATE ─── */
 let state={record:{members:[],splits:[]},me:null,tab:"home",busy:false};
-let form=null, mdraft=null;
+let form=null;
 let lStep="pick"; 
 let lPick=null;   
 let lPin="", lErr="";
@@ -238,27 +223,29 @@ function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE)||"{}");
   if(c.record)state.record=c.record;if(c.me)state.me=c.me;}catch(e){}}
 function saveCache(){try{localStorage.setItem(CACHE,JSON.stringify({record:state.record,me:state.me}));}catch(e){}}
 
-/* ─── API (JSONBin 객체 구조 정상 정상화) ─── */
+/* ─── API (JSONBin 규격 복구 완료) ─── */
 async function fetchRecord(){
   const r = await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY}, cache: "no-store"});
   if(!r.ok)throw new Error("fetch "+r.status);
   const j=await r.json();
-  const rec=j.record||{};
+  let rec = j.record || {};
+  if (rec.record) rec = rec.record; 
   if(!Array.isArray(rec.members))rec.members=[];
   if(!Array.isArray(rec.splits))rec.splits=[];
   return rec;
 }
+
 async function putRecord(rec){
   const r = await fetch(API,{
     method:"PUT",
-    headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY},
-    body:stringifyRecord(rec) // {record: rec} 중첩 포장 구문을 완전 제거 및 원상복구
+    headers:{
+      "Content-Type":"application/json",
+      "X-Master-Key":MASTER_KEY
+    },
+    body: JSON.stringify({ members: rec.members, splits: rec.splits })
   });
   if(!r.ok)throw new Error("HTTP "+r.status);
   return r;
-}
-function stringifyRecord(rec) {
-  return JSON.stringify({ members: rec.members, splits: rec.splits });
 }
 
 function mergePresets(rec){
@@ -305,7 +292,7 @@ async function mutate(fn){
   }
 }
 
-/* ─── 계산 및 매칭 고정화 ─── */
+/* ─── 계산 공식 ─── */
 function settleByCurrency(cur){
   const net={};state.record.members.forEach(m=>net[m.id]=0);
   state.record.splits.filter(s=>s.currency===cur).forEach(s=>{
@@ -338,26 +325,6 @@ function myWallet(cur){
     if(t.to === state.me) recv += t.amt;
   });
   return {owe, recv, net: recv - owe};
-}
-
-function myInbox(){
-  const me=state.me;const items=[];
-  state.record.splits.forEach(s=>{
-    if(s.payerId!==me){
-      const sh=s.shares.find(x=>x.memberId===me);
-      if(sh&&sh.status==="confirmed")items.push({type:"pending",split:s,share:sh});
-      if(sh&&sh.status==="edit_requested")items.push({type:"mine_pending",split:s,share:sh});
-    }
-    if(s.payerId===me){
-      s.shares.forEach(sh=>{
-        if(sh.memberId!==me&&sh.status==="edit_requested")
-          items.push({type:"approve_edit",split:s,share:sh});
-      });
-    }
-  });
-  const w={approve_edit:0,accept:1,mine_pending:2};
-  items.sort((a,b)=>w[a.type]-w[b.type]);
-  return items;
 }
 
 /* ─── RENDER ─── */
@@ -397,8 +364,7 @@ function viewHTML(){
 
 /* ── 홈 ── */
 function homeHTML(){
-  const inbox=myInbox();const cta=ctaObj();
-  let html=`<button class="cta" data-tab="create"><div class="big">${cta.big}</div><div class="sub">${cta.sub}</div></button>`;
+  let html=`<button class="cta" data-tab="create"><div class="big">이번엔 제 카드로 하시죠 →</div><div class="sub">어서 쓰세요, 여기서 나눠요</div></button>`;
   
   const active=CUR_ORDER.filter(c=>state.record.splits.some(s=>s.currency===c));
   if(active.length){
@@ -446,47 +412,9 @@ function homeHTML(){
     });
   }
 
-  if(inbox.length){
-    html+=`<div class="sec-h" style="margin-top:16px">✉️ 응답할 내용 (${inbox.length})</div>`;
-    inbox.forEach(it=>html+=inboxItemHTML(it));
-  }
-
   if(!active.length)
     html+=`<div class="empty">아직 정산 내역이 없어요 🍕<br>밀라노 첫 끼니를 기록해보세요!</div>`;
   return html;
-}
-
-function inboxItemHTML(it){
-  const s=it.split,sh=it.share,cur=s.currency;
-  const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
-  if(it.type==="pending")return`<div class="inbox-item">
-    <div class="ii-top"><div>
-      <div class="ii-desc">${esc(s.desc)} </div>
-      <div class="ii-meta">${when} · <b>${esc(nameOf(s.payerId))}</b>님 결제 · ${CUR[cur].name}</div>
-    </div><div class="ii-amt num debit">${fmt(sh.amount,cur)}</div></div>
-    <div class="ii-actions">
-      <button class="btn" data-act="reqedit" data-sid="${s.id}" style="flex:1">💬 금액 수정 제안</button>
-    </div></div>`;
-  if(it.type==="approve_edit")return`<div class="inbox-item">
-    <div class="ii-top"><div>
-      <div class="ii-desc">${esc(s.desc)} <span class="badge edit">수정 요청</span></div>
-      <div class="ii-meta"><b>${esc(nameOf(sh.memberId))}</b>님 제안 · ${CUR[cur].name}</div>
-    </div><div class="ii-amt num">
-      <span class="zero" style="text-decoration:line-through;font-size:.78rem">${fmt(sh.amount,cur)}</span>
-      → <span class="debit">${fmt(sh.proposed,cur)}</span>
-    </div></div>
-    <div class="ii-actions">
-      <button class="btn primary" data-act="approveedit" data-sid="${s.id}" data-mid="${sh.memberId}">반영</button>
-      <button class="btn danger" data-act="rejectedit" data-sid="${s.id}" data-mid="${sh.memberId}">거절</button>
-    </div></div>`;
-  return`<div class="inbox-item">
-    <div class="ii-top"><div>
-      <div class="ii-desc">${esc(s.desc)} <span class="badge edit">내 수정요청 검토중</span></div>
-      <div class="ii-meta"><b>${esc(nameOf(s.payerId))}</b>님 확인 대기</div>
-    </div><div class="ii-amt num">${fmt(sh.proposed,cur)}</div></div>
-    <div class="ii-actions">
-      <button class="btn ghost" data-act="canceledit" data-sid="${s.id}">요청 취소</button>
-    </div></div>`;
 }
 
 /* ── 새 정산 ── */
@@ -556,7 +484,7 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (전체 열람형 오픈형 구조) ── */
+/* ── 영수증 (완전 오픈 구조) ── */
 function historyHTML(){
   const splits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
@@ -589,16 +517,15 @@ function historyHTML(){
         <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-bottom:6px">분담 내역 명단</div>
         ${s.shares.map(sh=>{
           const isMe=sh.memberId===state.me;
-          const b=sh.status==="edit_requested"?`<span class="badge edit" style="font-size:.6rem">수정요청</span>`:"";
           const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
           return`<div class="share-line">
-            <span class="pname">${esc(nameOf(sh.memberId))}${isMe?" <span class='me-tag'>나</span>":""} ${b}</span>
+            <span class="pname">${esc(nameOf(sh.memberId))}${isMe?" <span class='me-tag'>나</span>":""}</span>
             <span class="dots"></span>
             <span class="num" style="font-size:.88rem">${fmt(amt,cur)}</span>
           </div>`;
         }).join("")}
         
-        ${canDelete?`<button class="btn danger" style="width:100%; margin-top:16px;" data-act="delsplit" data-sid="${s.id}">이 영수증 삭제하기</button>`:""}
+        <button class="btn danger" style="width:100%; margin-top:16px;" data-act="delsplit" data-sid="${s.id}">이 영수증 삭제하기</button>
       </div>
     </div>`;
   }).join("");
@@ -610,7 +537,7 @@ function membersHTML(){
   return`<div class="card">
     <div class="sec-h">우리 일행 · ${mdraft.length}명</div>
     <p class="hint" style="margin:-4px 0 14px;line-height:1.6">
-      📌 프리셋 멤버(잠금 표시)는 이름을 변경하거나 삭제할 수 없어요.<br>추가 인원만 따로 관리할 수 있습니다.
+      📌 프리셋 멤버는 이름을 변경하거나 삭제할 수 없어요.
     </p>
     ${mdraft.map((m,i)=>{
       const isPreset=PRESET.find(p=>p.id===m.id);
@@ -620,10 +547,6 @@ function membersHTML(){
         ${isPreset?`<span class="preset-lock" title="프리셋 멤버">🔒</span>`
           :`<button class="mx" data-act="mremove" data-mid="${m.id}">✕</button>`}
       </div>`;}).join("")}
-    <div style="display:flex;justify-content:space-between;margin-top:14px;gap:8px">
-      <button class="btn" style="flex:0 0 auto" data-act="madd">+ 일행 추가</button>
-      <button class="btn primary" style="flex:0 0 auto" data-act="msave">저장하기</button>
-    </div>
   </div>`;
 }
 
@@ -729,7 +652,6 @@ function bind(){
   app.querySelectorAll("[data-time]").forEach(b=>b.addEventListener("click",()=>{form.timeSlot=b.dataset.time;render();}));
   app.querySelectorAll("[data-toggle]").forEach(el=>el.addEventListener("click",()=>{form.checked[el.dataset.toggle]=!form.checked[el.dataset.toggle];render();}));
   app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
-  app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.name=el.value;}}));
   
   app.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handleAct(b.dataset.act,b.dataset)));
 }
@@ -740,44 +662,14 @@ async function handleAct(act,d){
     case "switch":state.me=null;lStep="pick";lErr="";lPin="";saveCache();render();break;
     case "pull":toast("동기화 중…");await pull();toast("최신 상태예요 ✓");break;
     case "createsplit":return createSplit();
-    
-    case "reqedit":{
-      const s=state.record.splits.find(x=>x.id===sid);
-      const sh=s?.shares.find(x=>x.memberId===state.me);const cur=s.currency;
-      const v=prompt(`수정할 내 금액 (${CUR[cur].sym})`,(sh.amount/CUR[cur].factor).toString());
-      if(v===null)break;const minor=toMinor(v,cur);
-      await mutate(rec=>{const ss=rec.splits.find(x=>x.id===sid);
-        const ssh=ss.shares.find(x=>x.memberId===state.me);ssh.status="edit_requested";ssh.proposed=minor;});
-      toast("수정 요청을 보냈어요");break;}
-    case "canceledit":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);
-        const sh=s.shares.find(x=>x.memberId===state.me);sh.status="pending";sh.proposed=null;});
-      toast("요청을 취소했어요");break;
-    case "approveedit":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);
-        const sh=s.shares.find(x=>x.memberId===d.mid);sh.amount=sh.proposed;sh.proposed=null;sh.status="accepted";});
-      toast("반영 완료! 다른 분들은 ↻ 새로고침을 눌러주세요",3000);break;
-    case "rejectedit":
-      await mutate(rec=>{const s=rec.splits.find(x=>x.id===sid);
-        const sh=s.shares.find(x=>x.memberId===d.mid);sh.proposed=null;sh.status="pending";});
-      toast("거절했어요. 대기중으로 돌아가요");break;
     case "delsplit":
       if(!confirm("이 정산을 정말 삭제할까요?"))break;
-      await mutate(rec=>{rec.splits=rec.splits.filter(x => x.id !== sid);});toast("삭제했어요");break;
-    case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null});render();break;
-    case "mremove":
-      if(PRESET.find(p=>p.id===d.mid)){toast("프리셋 멤버는 삭제할 수 없어요");break;}
-      mdraft=mdraft.filter(x=>x.id!==d.mid);render();break;
-    case "msave":
       await mutate(rec=>{
-        mdraft.forEach(dm=>{
-          const ex=rec.members.find(x=>x.id===dm.id);
-          if(ex && !PRESET.find(p=>p.id===dm.id)){ex.name=dm.name||"이름없음";} 
-          else if(!ex) rec.members.push({id:dm.id,name:dm.name||"이름없음",pin:null});
-        });
-        const presetIds=PRESET.map(p=>p.id);
-        rec.members=rec.members.filter(m=>presetIds.includes(m.id)||mdraft.some(dm=>dm.id===m.id));
-      });mdraft=null;toast("저장했어요 ✓");break;
+        if(rec.record) rec = rec.record;
+        rec.splits=rec.splits.filter(x => x.id !== sid);
+      });
+      toast("삭제했어요");
+      break;
   }
 }
 
@@ -799,7 +691,10 @@ async function createSplit(){
   }
   const split={id:uid(),payerId:state.me,currency:cur,desc:form.desc.trim(),
     date:form.day,timeSlot:form.timeSlot,method:form.method,shares,createdAt:Date.now()};
-  const ok=await mutate(rec=>rec.splits.push(split));
+  const ok=await mutate(rec=>{
+    if(rec.record) rec = rec.record;
+    rec.splits.push(split);
+  });
   if(ok){
     form=null;
     state.tab="history"; 
