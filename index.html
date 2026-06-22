@@ -113,16 +113,14 @@ input,select{font-family:'Nunito',sans-serif;}
 .save{width:100%;background:linear-gradient(135deg,var(--terra),#F08050);color:#fff;border:none;border-radius:13px;padding:16px;font-size:1rem;font-weight:900;box-shadow:0 4px 14px rgba(232,105,74,.3);}
 .save:disabled{opacity:.5;}
 
-/* ── HISTORY (영수증) ── */
-.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .1s;}
-.receipt:active{transform:scale(.99);}
-.r-top{display:flex;justify-content:space-between;gap:8px;pointer-events:none;}
+/* ── HISTORY (영수증 목록 상시 노출) ── */
+.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);}
+.r-top{display:flex;justify-content:space-between;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line);}
 .r-desc{font-weight:800;font-size:1rem;}
 .r-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
-.r-total{font-weight:900;font-size:1.1rem;white-space:nowrap;}
+.r-total{font-weight:900;font-size:1.1rem;white-space:nowrap;color:var(--terra);}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
-.receipt-details{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);cursor:default;}
-.receipt.expanded .receipt-details{display:block;}
+.receipt-details{display:block;margin-top:12px;padding-top:4px;}
 .settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
 .settle-item:last-child{border-bottom:none;}
 
@@ -182,7 +180,7 @@ const BIN_ID     = "6a38adf7f5f4af5e291acf18";
 const MASTER_KEY = "$2a$10$knEeVypXEreIpvS8jjaIcuYwEtCdVzgfneXidZApzdleNV3BNltwi";
 const API        = "https://api.jsonbin.io/v3/b/" + BIN_ID;
 
-/* ─── 12명 프리셋 (이름순, 안정 ID) ─── */
+/* ─── 12명 프리셋 ─── */
 const PRESET = [
   {id:"pm01",name:"김가영"},{id:"pm02",name:"김민준"},{id:"pm03",name:"김주희"},
   {id:"pm04",name:"김진현"},{id:"pm05",name:"심성태"},{id:"pm06",name:"양보윤"},
@@ -214,9 +212,8 @@ const CTA_POOL=[
 /* ─── STATE ─── */
 let state={record:{members:[],splits:[]},me:null,tab:"home",busy:false};
 let form=null, mdraft=null;
-// 로그인 상태
-let lStep="pick"; // "pick" | "pin"
-let lPick=null;   // {id, name, hasPin}
+let lStep="pick"; 
+let lPick=null;   
 let lPin="", lErr="";
 
 /* ─── UTILS ─── */
@@ -556,11 +553,11 @@ function createHTML(){
     </div>
     ${form.method==="custom"?`<div class="total-line"><span>합계</span><span class="dots"></span><span class="num">${fmt(customTotal,cur)}</span></div>`:""}
     ${form.err?`<div class="err-box" style="margin-top:12px">${form.err}</div>`:""}
-    <button class="save" data-act="createsplit" style="margin-top:16px" ${state.busy?"disabled":""}>정산 요청 보내기 🚀</button>
+    <button class="save" data-act="createsplit" style="margin-top:16px" ${state.busy?"disabled":""}>내가 낸 금액 입력 완료 🚀</button>
   </div>`;
 }
 
-/* ── 영수증 ── */
+/* ── 영수증 (누가누가 분담했는지 상시 노출) ── */
 function historyHTML(){
   const allSplits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
@@ -585,14 +582,14 @@ function historyHTML(){
       </div>
       
       <div class="receipt-details">
-        <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-bottom:6px">결제자</div>
+        <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-top:10px;margin-bottom:6px">결제자</div>
         <div class="share-line" style="margin-bottom:12px">
           <span class="pname"><b>${esc(nameOf(s.payerId))}</b>${s.payerId===state.me?" <span class='me-tag'>나</span>":""}</span>
           <span class="dots"></span>
           <span class="num">${fmt(total,cur)}</span>
         </div>
         
-        <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-bottom:6px">분담 내역 (${s.shares.length}명)</div>
+        <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-bottom:6px">분담 내역 명단</div>
         ${s.shares.map(sh=>{
           const isMe=sh.memberId===state.me;
           const b=sh.status==="edit_requested"?`<span class="badge edit" style="font-size:.6rem">수정요청</span>`:"";
@@ -737,14 +734,6 @@ function bind(){
   app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
   app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.name=el.value;}}));
   
-  // 영수증 펼치기 처리 (버튼 클릭시 무시)
-  app.querySelectorAll(".receipt").forEach(r=>{
-    r.addEventListener("click",(e)=>{
-      if(e.target.closest("button")) return; 
-      const id=r.id;if(id)r.classList.toggle("expanded");
-    });
-  });
-  
   app.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handleAct(b.dataset.act,b.dataset)));
 }
 
@@ -815,8 +804,9 @@ async function createSplit(){
     date:form.day,timeSlot:form.timeSlot,method:form.method,shares,createdAt:Date.now()};
   const ok=await mutate(rec=>rec.splits.push(split));
   if(ok){
-    form=null;state.tab="home";
-    toast("✅ 정산이 등록되었어요!\n\n다른 멤버들은 우상단 ↻ 새로고침 버튼을 눌러서 확인할 수 있어요",4000);
+    form=null;
+    state.tab="history"; // 정산 등록 성공 시 영수증 페이지로 즉시 이동
+    toast("✅ 정산이 등록되었습니다!", 2000);
     render();
   }
 }
@@ -825,7 +815,7 @@ async function createSplit(){
 window.onerror = function(msg, src, line) {
   document.getElementById("app").innerHTML =
     '<div style="padding:24px;font-family:monospace;font-size:13px;background:#fff;' +
-    'color:#c00;border-radius:12px;margin:20px"><b>JS 오류 (스크린샷 찍어줘요)</b><br><br>' +
+    'color:#c00;border-radius:12px;margin:20px"><b>JS 오류</b><br><br>' +
     msg + '<br><br>Line: ' + line + '</div>';
 };
 
@@ -838,7 +828,7 @@ try {
 } catch(e) {
   document.getElementById("app").innerHTML =
     '<div style="padding:24px;font-family:monospace;font-size:13px;background:#fff;' +
-    'color:#c00;border-radius:12px;margin:20px"><b>부트 오류 (스크린샷 찍어줘요)</b><br><br>' +
+    'color:#c00;border-radius:12px;margin:20px"><b>부트 오류</b><br><br>' +
     e.message + '</div>';
 }
 </script>
