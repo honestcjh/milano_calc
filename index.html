@@ -370,18 +370,31 @@ function viewHTML(ctaText) {
       <span class="num debit" style="font-weight:900; font-size:1rem; color:${t.to===currentViewer?'var(--credit)':'var(--debit)'}">${fmt(t.amt, cur)}</span>
     </div>`;
     
-    // 간결하게 내역과 과정 중심으로만 인과관계 추적 해설 생성 (중간 다리 표현 걷어냄)
+    // ─── ⛓️ 정교한 1:1 관계 추적 및 직관적인 인과관계 설명 엔진 ───
     const fromPayerSplits = state.splits.filter(s => s.currency === cur && s.shares.some(sh => sh.name === t.from));
     const originalPayers = [...new Set(fromPayerSplits.map(s => s.payer))].filter(p => p !== t.from);
-    const bridgePayers = originalPayers.filter(p => (rawNet[p] || 0) <= 0 || txns.some(txn => txn.from === p && txn.to === t.to));
     
     let flowExplanation = "";
-    if(bridgePayers.length > 0) {
-      const bridgesStr = bridgePayers.join(", ");
-      // 내역과 과정 중심으로 간결화, '정산해주면 된다'로 마감문구 변경
-      flowExplanation = `원래 <b>${t.from}</b>님은 같이 지출한 내역으로 인해 결제자(<b>${bridgesStr}</b>)에게 줄 돈이 있지만, 해당 결제자들 역시 다른 지출 내역으로 인해 최종 결제자인 <b>${t.to}</b>님에게 줄 돈이 밀려있는 상태입니다. 따라서 과정 단축을 위해 <b>${t.from}</b>님이 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
+    
+    // 최종 채권자(to)가 애초에 원본 결제자 목록에 포함되어 있는지 확인
+    if (originalPayers.includes(t.to)) {
+      // 1. 단순 직진 관계 (예: 이승재 ➔ 이원태)
+      // 내가 같이 지출에 참여했던 원본 영수증의 주인(to)이 최종 채권자인 상황
+      const matchingItems = fromPayerSplits.filter(s => s.payer === t.to).map(s => `<b>${esc(s.desc)}</b>`).join(", ");
+      flowExplanation = `원래 <b>${t.from}</b>님은 함께 소비했던 지출 내역(${matchingItems})으로 인해 원본 결제자인 <b>${t.to}</b>님에게 직접 줄 돈이 있습니다. <b>${t.to}</b>님은 모임에서 환급받을 채권자이므로 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
     } else {
-      flowExplanation = `<b>${t.from}</b>님이 지출 명단 내역에 따라 내야 하는 정산액이, 지출 총액이 가장 많아 환급받아야 하는 대상인 <b>${t.to}</b>님에게 직접 매칭되었습니다. <b>${t.to}</b>님에게 정산해주면 됩니다.`;
+      // 2. 삼각 토스 우회 관계 (예: 이승재 ➔ 조현지)
+      // 내가 원래 돈을 줘야 하는 대상(originalPayers)들이 최종 채권자(to)에게 돈을 토해내야 하는 상황
+      const matchBridges = originalPayers.filter(p => (rawNet[p] || 0) <= 0 || txns.some(txn => txn.from === p && txn.to === t.to));
+      
+      if (matchBridges.length > 0) {
+        const bridgeName = matchBridges[0];
+        const matchingItems = fromPayerSplits.filter(s => s.payer === bridgeName).map(s => `<b>${esc(s.desc)}</b>`).join(", ");
+        flowExplanation = `원래 <b>${t.from}</b>님은 지출 내역(${matchingItems})으로 인해 결제자인 <b>${bridgeName}</b>님에게 돈을 줘야 합니다. 하지만 <b>${bridgeName}</b>님 역시 다른 지출 건으로 인해 최종 채권자인 <b>${t.to}</b>님에게 줄 돈이 밀려있는 상태입니다. 따라서 과정 단축을 위해 <b>${t.from}</b>님이 <b>${bridgeName}</b>님을 거치지 않고 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
+      } else {
+        // 폴백 기본 문구
+        flowExplanation = `<b>${t.from}</b>님이 지출 명단 내역에 따라 내야 하는 정산액이, 환급 대상인 <b>${t.to}</b>님에게 직접 매칭되었습니다. <b>${t.to}</b>님에게 정산해주면 됩니다.`;
+      }
     }
 
     if(currentViewer === "전체보기" || t.from === currentViewer || t.to === currentViewer) {
