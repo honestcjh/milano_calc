@@ -108,7 +108,7 @@ input,select{font-family:'Nunito',sans-serif;}
 
 .empty{text-align:center;color:var(--ink-soft);padding:44px 18px;font-weight:600;}
 .foot{text-align:center;font-size:.66rem;color:var(--ink-soft);padding:18px;}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius999px;font-size:.82rem;font-weight:700;z-index:50;opacity:0;transition:opacity .2s;white-space:nowrap;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-size:.82rem;font-weight:700;z-index:50;opacity:0;transition:opacity .2s;white-space:nowrap;}
 .toast.show{opacity:1;}
 </style>
 </head>
@@ -232,44 +232,24 @@ function getRawBalances(cur) {
   return net;
 }
 
-// 💥 중요 수정: 엉뚱한 사람 매칭 오류를 원천 차단하기 위해 원본 영수증 결제망 중심의 추적 가이드 연산 탑재
 function calculateDebts(cur) {
-  const rawNet = getRawBalances(cur);
+  const net = getRawBalances(cur);
+  const deb = [], cre = [];
+  
+  Object.entries(net).forEach(([name, val]) => {
+    if(val < 0) deb.push({ name, amt: -val });
+    else if(val > 0) cre.push({ name, amt: val });
+  });
+
   const txns = [];
-
-  // 줄 돈이 있는 명단과 받을 돈이 있는 명단을 정밀 구분
-  const debtors = PRESET.filter(p => rawNet[p] < 0).map(p => ({ name: p, amt: -rawNet[p] }));
-  const creditors = PRESET.filter(p => rawNet[p] > 0).map(p => ({ name: p, amt: rawNet[p] }));
-
-  // 1순위 타겟 매칭: 줄 돈이 있는 사람이 실제로 '참여했던 영수증의 원본 결제자' 중 돌려받아야 하는 채권자가 있다면 우선적으로 묶어줌
-  debtors.forEach(d => {
-    const mySplits = state.splits.filter(s => s.currency === cur && s.shares.some(sh => sh.name === d.name));
-    const rawPayers = [...new Set(mySplits.map(s => s.payer))];
-
-    rawPayers.forEach(p => {
-      const targetCred = creditors.find(c => c.name === p && c.amt > 0);
-      if (targetCred && d.amt > 0) {
-        const settleAmt = Math.min(d.amt, targetCred.amt);
-        txns.push({ from: d.name, to: targetCred.name, amt: settleAmt, isDirect: true });
-        d.amt -= settleAmt;
-        targetCred.amt -= settleAmt;
-      }
-    });
-  });
-
-  // 2순위 징검다리 매칭: 아직 채무가 남아있다면, 남아있는 채권자 풀 중 잔여 금액이 큰 순서대로 매칭 (우회/삼각 정산 해설로 충당)
-  debtors.forEach(d => {
-    if (d.amt <= 0) return;
-    creditors.sort((a,b) => b.amt - a.amt).forEach(c => {
-      if (c.amt <= 0 || d.amt <= 0) return;
-      const settleAmt = Math.min(d.amt, c.amt);
-      txns.push({ from: d.name, to: c.name, amt: settleAmt, isDirect: false });
-      d.amt -= settleAmt;
-      c.amt -= settleAmt;
-    });
-  });
-
-  return txns.filter(t => t.amt > 0);
+  let i = 0, j = 0;
+  while(i < deb.length && j < cre.length) {
+    const pay = Math.min(deb[i].amt, cre[j].amt);
+    if(pay > 0) txns.push({ from: deb[i].name, to: cre[j].name, amt: pay });
+    deb[i].amt -= pay; cre[j].amt -= pay;
+    if(deb[i].amt <= 0) i++; if(cre[j].amt <= 0) j++;
+  }
+  return txns;
 }
 
 /* ─── RENDER MAIN ─── */
@@ -390,33 +370,51 @@ function viewHTML(ctaText) {
       <span class="num debit" style="font-weight:900; font-size:1rem; color:${t.to===currentViewer?'var(--credit)':'var(--debit)'}">${fmt(t.amt, cur)}</span>
     </div>`;
     
-    // ─── 과정 중심 명확한 해설 엔진 개조부 ───
+    // ─── ⛓️ 모든 거래관계를 생략 없이 전부 나열하는 전치 추적 엔진 개편 ───
     const fromPayerSplits = state.splits.filter(s => s.currency === cur && s.shares.some(sh => sh.name === t.from));
-    const originalPayers = [...new Set(fromPayerSplits.map(s => s.payer))].filter(p => p !== t.from);
     
-    let flowExplanation = "";
-    
-    if (t.isDirect) {
-      // 1번: 직진 정산 해설 (예: 이승재 -> 이원태)
-      const matchingItems = fromPayerSplits.filter(s => s.payer === t.to).map(s => `<b>${esc(s.desc)}</b>`).join(", ");
-      flowExplanation = `원래 <b>${t.from}</b>님은 함께 참여한 지출 내역(${matchingItems})으로 인해 결제자이신 <b>${t.to}</b>님에게 줄 돈이 있습니다. <b>${t.to}</b>님은 실제로 환급받아야 할 채권자가 맞으므로, <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
-    } else {
-      // 2번: 삼각 매칭 연쇄 해설 (예: 이승재 -> 조현지)
-      // 내가 실제로 돈을 줘야 하는 원본 결제자(정직한 등)가 최종 채권자(조현지 등)에게 빚을 지고 있을 때
-      const matchBridges = originalPayers.filter(p => (rawNet[p] || 0) <= 0 || txns.some(txn => txn.from === p && txn.to === t.to));
-      if (matchBridges.length > 0) {
-        const bridgeName = matchBridges[0];
-        const matchingItems = fromPayerSplits.filter(s => s.payer === bridgeName).map(s => `<b>${esc(s.desc)}</b>`).join(", ");
-        flowExplanation = `원래 <b>${t.from}</b>님은 지출 내역(${matchingItems}) 때문에 결제자인 <b>${bridgeName}</b>님에게 돈을 줘야 합니다. 하지만 <b>${bridgeName}</b>님 역시 다른 지출 건으로 인해 최종 채권자인 <b>${t.to}</b>님에게 줄 돈이 있는 상황입니다. 따라서 동선을 단축하여 <b>${t.from}</b>님이 <b>${bridgeName}</b>님을 거치지 않고 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
-      } else {
-        flowExplanation = `<b>${t.from}</b>님이 영수증 명단 내역에 따라 내야 하는 정산액이 지출 환급 대상자인 <b>${t.to}</b>님에게 매칭되었습니다. <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
+    // 내(t.from)가 참여한 영수증들의 원래 주인(결제자)들과 각 영수증별 내가 내야 할 돈의 맵 생성
+    const rawDebits = {};
+    fromPayerSplits.forEach(s => {
+      const share = s.shares.find(sh => sh.name === t.from);
+      if (share && s.payer !== t.from) {
+        rawDebits[s.payer] = (rawDebits[s.payer] || 0) + share.amount;
       }
+    });
+
+    let flowExplanation = "";
+    const itemsText = Object.entries(rawDebits).map(([payer, amt]) => `<b>${payer}</b>님에게 줄 돈 <b>${fmt(amt, cur)}</b>`).join(", ");
+
+    if (rawDebits[t.to] && Object.keys(rawDebits).length === 1) {
+      // 1. 순수 1:1 직진 정산일 때 (채무 관계가 꼬이지 않고 심플할 때)
+      flowExplanation = `원래 <b>${t.from}</b>님은 지출 명단에 따라 결제자이신 <b>${t.to}</b>님에게 직접 줄 돈이 있습니다. <b>${t.to}</b>님은 최종 대금을 환급받아야 하는 상태이므로, <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
+    } else {
+      // 2. 다각 거래관계가 얽혀 상계/우회가 일어날 때 (모든 중간 이동 경로를 투명하게 전치 서술)
+      let traceLog = [];
+      
+      Object.entries(rawDebits).forEach(([origPayer, myOrigAmt]) => {
+        if (origPayer === t.to) {
+          traceLog.push(`결제자이신 <b>${t.to}</b>님에게 줄 돈 <b>${fmt(myOrigAmt, cur)}</b>이 최종 송금액에 그대로 포함되었습니다.`);
+        } else {
+          // 중간 다리가 되는 사람이 최종 채권자에게 줘야 할 돈이 있는지 대조
+          const bridgeGiveToTarget = txns.find(txn => txn.from === origPayer && txn.to === t.to);
+          const bridgeRawBal = rawNet[origPayer] || 0;
+          
+          if (bridgeRawBal < 0) {
+            traceLog.push(`원래 <b>${origPayer}</b>님에게 줄 돈 <b>${fmt(myOrigAmt, cur)}</b>이 있었으나, <b>${origPayer}</b>님 역시 최종 채권자인 <b>${t.to}</b>님에게 정산금을 보내야 하는 상태입니다. 따라서 과정 단축을 위해 <b>${t.from}</b>님이 <b>${origPayer}</b>님을 거치지 않고 <b>${t.to}</b>님에게 바로 합산하여 정산해주면 됩니다.`);
+          } else {
+            traceLog.push(`원래 <b>${origPayer}</b>님에게 줄 돈 <b>${fmt(myOrigAmt, cur)}</b>이 있었으나, 타 구성원 간의 얽힌 채무 정산 관계에 따라 이 금액이 상계 및 조정되어 최종적으로 환급 대상자인 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`);
+          }
+        }
+      });
+
+      flowExplanation = `<b>${t.from}</b>님은 장부상 원래 ${itemsText}이 얽혀있습니다. <br/><br/>디테일한 정산 흐름을 풀면 다음과 같습니다:<br/>` + traceLog.map(log => `➔ ${log}`).join("<br/>");
     }
 
     if(currentViewer === "전체보기" || t.from === currentViewer || t.to === currentViewer) {
       html += `
       <div class="flow-box">
-        <div class="flow-title">⛓️ 지출 내역 기반 정산 과정 추적</div>
+        <div class="flow-title">⛓️ 지출 내역별 정산 인과관계 완전 역추적</div>
         ${flowExplanation}
       </div>`;
     }
@@ -562,7 +560,7 @@ document.addEventListener("click", async function(e) {
     if(!confirm("이 정산을 정말 삭제할까요?")) return;
     const idx = parseInt(e.target.dataset.idx);
     const nextSplits = state.splits.filter((_, i) => i !== idx);
-    await saveData(newSplits = nextSplits);
+    await saveData(nextSplits);
     loadData();
   }
 });
