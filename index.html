@@ -274,6 +274,32 @@ async function putRecord(rec){
     return await doput();
   }
 }
+
+/* 프리셋 시딩: bin에 없는 프리셋 멤버 추가 */
+function mergePresets(rec){
+  let changed=false;
+  PRESET.forEach(p=>{
+    if(!rec.members.find(m=>m.id===p.id)){
+      rec.members.push({id:p.id,name:p.name,pin:null,nick:null});
+      changed=true;
+    }
+  });
+  return changed;
+}
+
+async function pull(){
+  try{
+    const rec=await fetchRecord();
+    const changed=mergePresets(rec);
+    if(changed)await putRecord(rec);
+    state.record=rec;saveCache();render();
+  }catch(e){
+    console.warn("pull failed",e);
+    mergePresets(state.record);
+    render();
+  }
+}
+
 async function mutate(fn){
   if(state.busy){toast("처리 중이에요, 잠시만요…");return false;}
   state.busy=true;
