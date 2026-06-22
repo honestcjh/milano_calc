@@ -146,7 +146,7 @@ let state = { splits: [] };
 let activeTab = "home";
 let form = null;
 let currentViewer = "전체보기"; 
-let currentCurrency = "EUR"; // 대시보드 통화 필터 기본값
+let currentCurrency = "EUR"; 
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -264,7 +264,7 @@ function render() {
     </div>
     <div class="tabs">
       <button class="tab ${activeTab==='home'?'on':''}" data-t="home">🏠 대시보드</button>
-      <button class="tab ${activeTab==='create'?'on':''}" data-t="create">💳 내가낼게</button>
+      <button class="tab ${activeTab==='create'?'on':''}" data-t="create">💳 정산 입력</button>
       <button class="tab ${activeTab==='history'?'on':''}" data-t="history">🧾 영수증 장부</button>
     </div>
   </div></div>
@@ -278,14 +278,11 @@ function viewHTML(ctaText) {
   if(activeTab === "create") return createHTML();
   if(activeTab === "history") return historyHTML();
   
-  // ─── VISUAL DASHBOARD HOME ───
   let html = `
-  <!-- 상단 멀티 통화 선택 필터 탭 바 -->
   <div class="seg curseg" style="margin-bottom:12px;">
     ${["EUR", "KRW", "TRY"].map(c => `<button class="dashboardCurrencyBtn ${currentCurrency===c?'on':''}" data-c="${c}">${CUR[c].sym} ${CUR[c].name} 현황</button>`).join("")}
   </div>
 
-  <!-- 사람 선택 필터 -->
   <div class="card" style="padding:14px; margin-bottom:12px; border-radius:16px;">
     <div class="field" style="margin-bottom:0;">
       <select id="homeViewerSelect" style="border:none; background:#F8EFE6; padding:10px 12px;">
@@ -301,21 +298,16 @@ function viewHTML(ctaText) {
   const rawNet = getRawBalances(cur);
   const txns = calculateDebts(cur);
   
-  // 현재 통화에 등록된 지출 내역 유무 판단
   const hasData = state.splits.some(s => s.currency === cur);
-  
   if(!hasData) {
-    html += `<div class="empty">${CUR[cur].name}으로 등록된 정산 내역이 없습니다.🍕<br>'내가낼게' 탭에서 첫 지출을 기록해보세요!</div>`;
+    html += `<div class="empty">${CUR[cur].name}으로 등록된 정산 내역이 없습니다.🍕<br>'정산 입력' 탭에서 첫 지출을 기록해보세요!</div>`;
     return html;
   }
 
-  // 1단계: 비주얼 차트형 대시보드 스코어보드
   html += `<div class="wallet">`;
   
   if(currentViewer === "전체보기") {
     html += `<div class="sec-h">📊 1단계: 구성원별 지출 장부 밸런스 상태</div>`;
-    
-    // 최대 절대값 금액 계산 (차트 비율용)
     const maxVal = Math.max(...PRESET.map(name => Math.abs(rawNet[name] || 0)), 1);
 
     PRESET.forEach(name => {
@@ -335,7 +327,6 @@ function viewHTML(ctaText) {
       </div>`;
     });
   } else {
-    // 특정 개인 선택 뷰어
     const myRawVal = rawNet[currentViewer] || 0;
     html += `
     <div class="sec-h">⚖️ 1단계: ${currentViewer}님의 누적 정산 현황 요약</div>
@@ -346,30 +337,25 @@ function viewHTML(ctaText) {
       <div class="val num ${myRawVal>0?'credit':'debit'}">${myRawVal>0?'+':''}${fmt(myRawVal, cur)}</div></div>
     </div>`;
 
-    // 🌟 추가요청 사항: 개인 선택 시, 어떤 지출 항목들로 구성되었는지 역추적 내역 매칭 노출
     html += `
     <div style="font-size:0.72rem; font-weight:800; color:var(--ink-soft); margin-top:8px; margin-bottom:4px;">🧾 내가 참여한 실제 지출 세부 내역</div>
     <div style="font-size:0.8rem; background:var(--cream); padding:10px; border-radius:10px; margin-bottom:10px; line-height:1.45;">
       ${state.splits.filter(s => s.currency === cur).map(s => {
         const myShare = s.shares.find(sh => sh.name === currentViewer);
-        if(!myShare && s.payer !== currentViewer) return ''; // 참여도 안 하고 결제도 안 했으면 패스
+        if(!myShare && s.payer !== currentViewer) return ''; 
         
         if(s.payer === currentViewer) {
-          // 내가 쏜 영수증 건
           const totalPaid = s.shares.reduce((sum, x) => sum + x.amount, 0);
           const collectAmt = totalPaid - (myShare ? myShare.amount : 0);
-          return `<div style="margin-bottom:4px; color:var(--credit);">✓ [내 결제] <b>${esc(s.desc)}</b>: 총 ${fmt(totalPaid, cur)} 지출 중 일행들에게 <b>+${fmt(collectAmt, cur)}</b> 돌려받아야 함</div>`;
+          return `<div style="margin-bottom:4px; color:var(--credit);">✓ [내 결제] <b>${esc(s.desc)}</b>: 총 ${fmt(totalPaid, cur)} 중 일행몫 <b>+${fmt(collectAmt, cur)}</b> 받기</div>`;
         } else {
-          // 일행이 쏜 영수증에 내가 분담하는 건
-          return `<div style="margin-bottom:4px; color:var(--debit);">➔ [분담] <b>${esc(s.desc)}</b> (결제: ${s.payer}): 내 분담 몫으로 <b>-${fmt(myShare.amount, cur)}</b> 지불 책임 발생</div>`;
+          return `<div style="margin-bottom:4px; color:var(--debit);">➔ [분담] <b>${esc(s.desc)}</b> (결제: ${s.payer}): 내 분담금 <b>-${fmt(myShare.amount, cur)}</b> 주기</div>`;
         }
       }).join("")}
     </div>`;
   }
 
-  // 2단계: 최적 압축 경로 및 인과관계 매칭
-  html += `
-    <div class="sec-h" style="margin-top:18px; padding-top:12px; border-top:1px dashed var(--line);">🔗 2단계: 복잡한 관계를 정리한 최종 송금 가이드</div>`;
+  html += `<div class="sec-h" style="margin-top:18px; padding-top:12px; border-top:1px dashed var(--line);">🔗 2단계: 최종 정산 가이드</div>`;
   
   let filteredTxns = txns;
   if(currentViewer !== "전체보기") {
@@ -384,7 +370,7 @@ function viewHTML(ctaText) {
       <span class="num debit" style="font-weight:900; font-size:1rem; color:${t.to===currentViewer?'var(--credit)':'var(--debit)'}">${fmt(t.amt, cur)}</span>
     </div>`;
     
-    // 원본 인과관계 추적 해설 텍스트 생성
+    // 간결하게 내역과 과정 중심으로만 인과관계 추적 해설 생성 (중간 다리 표현 걷어냄)
     const fromPayerSplits = state.splits.filter(s => s.currency === cur && s.shares.some(sh => sh.name === t.from));
     const originalPayers = [...new Set(fromPayerSplits.map(s => s.payer))].filter(p => p !== t.from);
     const bridgePayers = originalPayers.filter(p => (rawNet[p] || 0) <= 0 || txns.some(txn => txn.from === p && txn.to === t.to));
@@ -392,15 +378,16 @@ function viewHTML(ctaText) {
     let flowExplanation = "";
     if(bridgePayers.length > 0) {
       const bridgesStr = bridgePayers.join(", ");
-      flowExplanation = `원래 영수증 장부상 <b>${t.from}</b>님은 같이 지출을 공유했던 원본 결제자(<b>${bridgesStr}</b>)에게 돈을 줘야 합니다. 하지만 <b>${bridgesStr}</b>님 역시 연쇄적으로 다른 건에 의해 최종 채권자인 <b>${t.to}</b>님에게 돈을 토해내야 하는 상태입니다. 즉, 동선이 꼬이지 않도록 <b>${t.from}</b>님이 중간 다리를 건너뛰고 <b>${t.to}</b>님에게 정산금을 대신 배달해 주는 매칭 관계입니다.`;
+      // 내역과 과정 중심으로 간결화, '정산해주면 된다'로 마감문구 변경
+      flowExplanation = `원래 <b>${t.from}</b>님은 같이 지출한 내역으로 인해 결제자(<b>${bridgesStr}</b>)에게 줄 돈이 있지만, 해당 결제자들 역시 다른 지출 내역으로 인해 최종 결제자인 <b>${t.to}</b>님에게 줄 돈이 밀려있는 상태입니다. 따라서 과정 단축을 위해 <b>${t.from}</b>님이 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
     } else {
-      flowExplanation = `<b>${t.from}</b>님이 지출 명단상 모임에 지불해야 하는 분담 책임을, 이번 차수에서 결제를 가장 많이 하여 최종 돈을 돌려받아야 하는 채권자 <b>${t.to}</b>님에게 상계 처리하여 다이렉트로 전달하는 흐름입니다.`;
+      flowExplanation = `<b>${t.from}</b>님이 지출 명단 내역에 따라 내야 하는 정산액이, 지출 총액이 가장 많아 환급받아야 하는 대상인 <b>${t.to}</b>님에게 직접 매칭되었습니다. <b>${t.to}</b>님에게 정산해주면 됩니다.`;
     }
 
     if(currentViewer === "전체보기" || t.from === currentViewer || t.to === currentViewer) {
       html += `
       <div class="flow-box">
-        <div class="flow-title">⛓️ 송금 최적화 인과관계 추적</div>
+        <div class="flow-title">⛓️ 지출 내역 기반 정산 과정 추적</div>
         ${flowExplanation}
       </div>`;
     }
@@ -501,7 +488,6 @@ function bindEvents() {
   
   if($("#ctaGo")) $("#ctaGo").addEventListener("click", () => { activeTab = "create"; render(); });
 
-  // 홈 화면 통화 필터 제어 단추 바인딩
   document.querySelectorAll(".dashboardCurrencyBtn").forEach(b => b.addEventListener("click", () => {
     currentCurrency = b.dataset.c;
     render();
