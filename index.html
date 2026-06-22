@@ -47,24 +47,13 @@ input,select{font-family:'Nunito',sans-serif;}
 .cta{width:100%;background:linear-gradient(135deg,var(--terra) 0%,#F08050 100%);
   color:#fff;border:none;border-radius:18px;padding:20px;text-align:center;
   margin-bottom:16px;box-shadow:0 6px 20px rgba(232,105,74,.3);font-size:1.1rem;font-weight:900;}
-.btn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;font-size:.82rem;font-weight:800;color:var(--ink);flex:1;text-align:center;}
-.btn.primary{background:var(--terra);color:#fff;border-color:var(--terra);}
-.btn.danger{background:#FFE9E4;color:var(--debit);border-color:transparent;}
-
-/* ── VISUAL DASHBOARD CHART BAR ── */
-.visual-bar-container {width:100%; height:8px; background:#F0E6DF; border-radius:999px; margin:6px 0 12px; overflow:hidden; position:relative;}
-.visual-bar-fill {height:100%; border-radius:999px; transition:width 0.3s ease;}
-.visual-bar-fill.plus {background:linear-gradient(90deg, var(--sun), var(--sage));}
-.visual-bar-fill.minus {background:linear-gradient(90deg, #F0A08F, var(--terra));}
 
 /* ── WALLET CARD ── */
 .wallet{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:var(--shadow);}
-.wallet-h{font-weight:900;font-size:1.1rem;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
 .w-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
 .w-cell{background:var(--cream);border-radius:14px;padding:12px 14px;}
 .w-cell .lbl{font-size:.68rem;color:var(--ink-soft);font-weight:800;margin-bottom:2px;}
 .w-cell .val{font-size:1.15rem;font-weight:900;}
-.w-net{padding:12px 4px 0;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:800;}
 .settle-item{display:flex;align-items:center;font-size:.92rem;padding:10px 0;border-bottom:1px solid var(--line);}
 .settle-item:last-child{border-bottom:none;}
 
@@ -103,13 +92,8 @@ input,select{font-family:'Nunito',sans-serif;}
 .r-total{color:var(--terra);font-size:1.05rem;}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
 
-.flow-box{background:var(--cream);border-radius:12px;padding:12px;font-size:0.82rem;color:var(--ink);margin-top:8px;border-left:4px solid var(--terra);line-height:1.45;box-shadow:var(--shadow-sm);}
-.flow-title{font-weight:800;color:var(--terra);margin-bottom:4px;display:flex;align-items:center;gap:4px;}
-
-.empty{text-align:center;color:var(--ink-soft);padding:44px 18px;font-weight:600;}
-.foot{text-align:center;font-size:.66rem;color:var(--ink-soft);padding:18px;}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-size:.82rem;font-weight:700;z-index:50;opacity:0;transition:opacity .2s;white-space:nowrap;}
-.toast.show{opacity:1;}
+.flow-box{background:var(--cream);border-radius:12px;padding:12px;font-size:0.85rem;color:var(--ink);margin-top:8px;border-left:4px solid var(--terra);line-height:1.5;box-shadow:var(--shadow-sm);}
+.flow-title{font-weight:900;color:var(--terra);margin-bottom:6px;font-size:0.88rem;}
 </style>
 </head>
 <body>
@@ -145,8 +129,7 @@ const CTA_POOL=[
 let state = { splits: [] };
 let activeTab = "home";
 let form = null;
-let currentViewer = "전체보기"; 
-let currentCurrency = "EUR"; 
+let currentViewer = PRESET[0]; // 기본 첫 사람 선택
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -155,16 +138,12 @@ const fmt=(minor,c)=> (CUR[c]?.sym||"") + (minor/(CUR[c]?.factor||1)).toLocaleSt
 
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2000);}
 
-/* ─── 밀라노 현지 시간대 계산 함수 ─── */
 function getMilanoTimeInfo() {
   const kstDate = new Date();
   const milanoDate = new Date(kstDate.getTime() - (7 * 60 * 60 * 1000));
-  
   const yyyy = milanoDate.getFullYear();
   const mm = String(milanoDate.getMonth() + 1).padStart(2, '0');
   const dd = String(milanoDate.getDate()).padStart(2, '0');
-  const formattedDate = `${yyyy}-${mm}-${dd}`;
-  
   const hour = milanoDate.getHours();
   let timeSlot = "저녁";
   if(hour < 11) timeSlot = "오전";
@@ -172,8 +151,7 @@ function getMilanoTimeInfo() {
   else if(hour < 17) timeSlot = "오후";
   else if(hour < 22) timeSlot = "저녁";
   else timeSlot = "밤";
-  
-  return { date: formattedDate, timeSlot };
+  return { date: `${yyyy}-${mm}-${dd}`, timeSlot };
 }
 
 /* ─── API CORE ─── */
@@ -201,55 +179,24 @@ async function saveData(newSplits) {
     toast("장부에 반영되었습니다 ✓");
     return true;
   } catch(e) {
-    alert("서버 저장에 실패했습니다. 네트워크 상태를 확인해 주세요.");
+    alert("서버 저장에 실패했습니다.");
     return false;
   }
 }
 
-/* ─── 정산 엔진 ─── */
-function splitEqual(total, n){
-  if(n <= 0) return [];
-  const base = Math.floor(total / n);
-  let rem = total - base * n;
-  return Array.from({length: n}, () => {
-    const e = rem > 0 ? 1 : 0;
-    if(rem > 0) rem--;
-    return base + e;
-  });
-}
-
-function getRawBalances(cur) {
-  const net = {};
-  PRESET.forEach(p => net[p] = 0);
-  
+// 모임원별 '최종 찐 알짜 정산액' 계산용 (상단 대시보드 뱃지용)
+function getRawNetBalance(name, cur) {
+  let bal = 0;
   state.splits.filter(s => s.currency === cur).forEach(s => {
-    s.shares.forEach(sh => {
-      if(sh.name === s.payer) return;
-      net[s.payer] += sh.amount;
-      net[sh.name] -= sh.amount;
-    });
+    const share = s.shares.find(sh => sh.name === name);
+    if (s.payer === name) {
+      const totalPaid = s.shares.reduce((sum, x) => sum + x.amount, 0);
+      bal += (totalPaid - (share ? share.amount : 0));
+    } else if (share) {
+      bal -= share.amount;
+    }
   });
-  return net;
-}
-
-function calculateDebts(cur) {
-  const net = getRawBalances(cur);
-  const deb = [], cre = [];
-  
-  Object.entries(net).forEach(([name, val]) => {
-    if(val < 0) deb.push({ name, amt: -val });
-    else if(val > 0) cre.push({ name, amt: val });
-  });
-
-  const txns = [];
-  let i = 0, j = 0;
-  while(i < deb.length && j < cre.length) {
-    const pay = Math.min(deb[i].amt, cre[j].amt);
-    if(pay > 0) txns.push({ from: deb[i].name, to: cre[j].name, amt: pay });
-    deb[i].amt -= pay; cre[j].amt -= pay;
-    if(deb[i].amt <= 0) i++; if(cre[j].amt <= 0) j++;
-  }
-  return txns;
+  return bal;
 }
 
 /* ─── RENDER MAIN ─── */
@@ -269,7 +216,7 @@ function render() {
     </div>
   </div></div>
   <div class="content">${viewHTML(ctaText)}</div>
-  <div class="foot">🇮🇹 PMBA 14기 밀라노 연수 · 실시간 전체 공유 장부</div>`;
+  <div class="foot">🇮🇹 PMBA 14기 밀라노 연수 · 영수증 내역별 맞춤 가이드</div>`;
   
   bindEvents();
 }
@@ -278,153 +225,94 @@ function viewHTML(ctaText) {
   if(activeTab === "create") return createHTML();
   if(activeTab === "history") return historyHTML();
   
+  // ─── 🏠 신개념 영수증 내역 맞춤 대시보드 ───
   let html = `
-  <div class="seg curseg" style="margin-bottom:12px;">
-    ${["EUR", "KRW", "TRY"].map(c => `<button class="dashboardCurrencyBtn ${currentCurrency===c?'on':''}" data-c="${c}">${CUR[c].sym} ${CUR[c].name} 현황</button>`).join("")}
-  </div>
-
   <div class="card" style="padding:14px; margin-bottom:12px; border-radius:16px;">
     <div class="field" style="margin-bottom:0;">
-      <select id="homeViewerSelect" style="border:none; background:#F8EFE6; padding:10px 12px;">
-        <option value="전체보기" ${currentViewer==='전체보기'?'selected':''}>📊 구성원 전체 정산 리포트 보기</option>
-        ${PRESET.map(p => `<option value="${p}" ${currentViewer===p?'selected':''}>👤 ${p}님 기준 현황만 매칭하기</option>`).join("")}
+      <span style="margin-bottom:4px; font-weight:800; color:var(--ink-soft);">👤 내 이름 선택하기</span>
+      <select id="homeViewerSelect" style="border:none; background:#F8EFE6; padding:10px 12px; font-weight:800;">
+        ${PRESET.map(p => `<option value="${p}" ${currentViewer===p?'selected':''}>${p}님 기준 정산 내역 매칭</option>`).join("")}
       </select>
     </div>
   </div>`;
 
   html += `<button class="cta" id="ctaGo">${esc(ctaText)}</button>`;
   
-  const cur = currentCurrency;
-  const rawNet = getRawBalances(cur);
-  const txns = calculateDebts(cur);
-  
-  const hasData = state.splits.some(s => s.currency === cur);
-  if(!hasData) {
-    html += `<div class="empty">${CUR[cur].name}으로 등록된 정산 내역이 없습니다.🍕<br>'정산 입력' 탭에서 첫 지출을 기록해보세요!</div>`;
-    return html;
-  }
-
-  html += `<div class="wallet">`;
-  
-  if(currentViewer === "전체보기") {
-    html += `<div class="sec-h">📊 1단계: 구성원별 지출 장부 밸런스 상태</div>`;
-    const maxVal = Math.max(...PRESET.map(name => Math.abs(rawNet[name] || 0)), 1);
-
-    PRESET.forEach(name => {
-      const val = rawNet[name] || 0;
-      if(val === 0) return;
-      const ratio = Math.min(100, (Math.abs(val) / maxVal) * 100);
+  // 통화별 루프를 돌며 영수증 건별 독립 매칭 내역 렌더링
+  ["EUR", "KRW", "TRY"].forEach(cur => {
+    const mySplits = state.splits.filter(s => s.currency === cur && (s.payer === currentViewer || s.shares.some(sh => sh.name === currentViewer)));
+    if (mySplits.length === 0) return;
+    
+    const totalRawNet = getRawNetBalance(currentViewer, cur);
+    
+    html += `
+    <div class="wallet">
+      <div class="wallet-h">💰 ${cur} 실시간 정산 명세서</div>
+      <div class="w-grid">
+        <div class="w-cell"><div class="lbl">나의 최종 상태</div>
+        <div class="val num ${totalRawNet>=0?'credit':'debit'}" style="font-weight:900;">${totalRawNet>=0?'💸 돌려받기':'🔒 송금하기'}</div></div>
+        <div class="w-cell"><div class="lbl">최종 누적 총액</div>
+        <div class="val num ${totalRawNet>=0?'credit':'debit'}">${totalRawNet>=0?'+':''}${fmt(totalRawNet, cur)}</div></div>
+      </div>
       
-      html += `
-      <div style="margin-bottom:10px; font-size:0.85rem;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-weight:700;">
-          <span>${name}</span>
-          <span class="${val>0?'credit':'debit'}">${val>0?'+':''}${fmt(val, cur)}</span>
-        </div>
-        <div class="visual-bar-container">
-          <div class="visual-bar-fill ${val>0?'plus':'minus'}" style="width: ${ratio}%;"></div>
-        </div>
-      </div>`;
-    });
-  } else {
-    const myRawVal = rawNet[currentViewer] || 0;
-    html += `
-    <div class="sec-h">⚖️ 1단계: ${currentViewer}님의 누적 정산 현황 요약</div>
-    <div class="w-grid">
-      <div class="w-cell"><div class="lbl">최종 정산 포지션</div>
-      <div class="val num ${myRawVal>0?'credit':'debit'}" style="font-weight:900;">${myRawVal>0?'💸 돈 돌려받기':'🔒 정산금 보내기'}</div></div>
-      <div class="w-cell"><div class="lbl">누적 순수 정산액</div>
-      <div class="val num ${myRawVal>0?'credit':'debit'}">${myRawVal>0?'+':''}${fmt(myRawVal, cur)}</div></div>
-    </div>`;
-
-    html += `
-    <div style="font-size:0.72rem; font-weight:800; color:var(--ink-soft); margin-top:8px; margin-bottom:4px;">🧾 내가 참여한 실제 지출 세부 내역</div>
-    <div style="font-size:0.8rem; background:var(--cream); padding:10px; border-radius:10px; margin-bottom:10px; line-height:1.45;">
-      ${state.splits.filter(s => s.currency === cur).map(s => {
-        const myShare = s.shares.find(sh => sh.name === currentViewer);
-        if(!myShare && s.payer !== currentViewer) return ''; 
+      <div class="sec-h" style="margin-top:16px; border-top:1px dashed var(--line); padding-top:12px;">🧾 영수증별 인과관계 추적 가이드</div>`;
+      
+    mySplits.forEach(s => {
+      const myShare = s.shares.find(sh => sh.name === currentViewer);
+      
+      if (s.payer === currentViewer) {
+        // 1. 내가 낸 영수증일 때 ➔ 누구누구한테 각각 받으면 되는지 나열
+        const totalOthersPaid = s.shares.reduce((sum, x) => sum + (x.name !== currentViewer ? x.amount : 0), 0);
+        html += `
+        <div class="flow-box" style="border-left-color: var(--sage);">
+          <div class="flow-title" style="color: var(--credit);">✓ [내 결제] ${esc(s.desc)} (${fmt(s.shares.reduce((sum,x)=>sum+x.amount,0), cur)})</div>
+          내가 총 지출한 금액 중, 참여한 일행들로부터 <b>총 +${fmt(totalOthersPaid, cur)}</b>만큼 돌려받으면 됩니다.<br/>
+          <div style="margin-top:4px; padding-top:4px; border-top:1px dotted var(--line); font-size:0.8rem; color:var(--ink-soft);">
+            ${s.shares.filter(sh => sh.name !== currentViewer).map(sh => `• <b>${sh.name}</b>님에게 <b>+${fmt(sh.amount, cur)}</b> 받기`).join("<br/>")}
+          </div>
+        </div>`;
+      } else if (myShare) {
+        // 2. 일행이 낸 영수증에 내가 참여했을 때 ➔ 💥 질문자님 핵심 피드백 반영부 (우회 인과망 풀체인 서술)
+        // 원래 결제자(s.payer)의 '해당 통화 최종 포지션'을 파악
+        let origPayerTotalNet = getRawNetBalance(s.payer, cur);
         
-        if(s.payer === currentViewer) {
-          const totalPaid = s.shares.reduce((sum, x) => sum + x.amount, 0);
-          const collectAmt = totalPaid - (myShare ? myShare.amount : 0);
-          return `<div style="margin-bottom:4px; color:var(--credit);">✓ [내 결제] <b>${esc(s.desc)}</b>: 총 ${fmt(totalPaid, cur)} 중 일행몫 <b>+${fmt(collectAmt, cur)}</b> 받기</div>`;
+        let subExplanation = "";
+        let finalTarget = s.payer; // 최종 송금 타겟 기본값은 원본 결제자
+        
+        if (origPayerTotalNet >= 0) {
+          // 원래 결제자가 최종 장부상으로도 받아야 하는 채권자일 때 (예: 이승재 -> 이원태)
+          subExplanation = `원래 <b>${esc(s.desc)}</b> 내역으로 인해 결제자인 <b>${s.payer}</b>님에게 <b>-${fmt(myShare.amount, cur)}</b>를 줘야 합니다. <b>${s.payer}</b>님은 최종 장부상으로도 돌려받을 돈만 있는 상태이므로, <b>${s.payer}</b>님에게 직접 정산해주면 됩니다.`;
         } else {
-          return `<div style="margin-bottom:4px; color:var(--debit);">➔ [분담] <b>${esc(s.desc)}</b> (결제: ${s.payer}): 내 분담금 <b>-${fmt(myShare.amount, cur)}</b> 주기</div>`;
-        }
-      }).join("")}
-    </div>`;
-  }
-
-  html += `<div class="sec-h" style="margin-top:18px; padding-top:12px; border-top:1px dashed var(--line);">🔗 2단계: 최종 정산 가이드</div>`;
-  
-  let filteredTxns = txns;
-  if(currentViewer !== "전체보기") {
-    filteredTxns = txns.filter(t => t.from === currentViewer || t.to === currentViewer);
-  }
-
-  filteredTxns.forEach(t => {
-    html += `
-    <div class="settle-item">
-      <span><b>${esc(t.from)}</b> ➔ <b>${esc(t.to)}</b></span>
-      <span class="dots"></span>
-      <span class="num debit" style="font-weight:900; font-size:1rem; color:${t.to===currentViewer?'var(--credit)':'var(--debit)'}">${fmt(t.amt, cur)}</span>
-    </div>`;
-    
-    // ─── ⛓️ 모든 거래관계를 생략 없이 전부 나열하는 전치 추적 엔진 개편 ───
-    const fromPayerSplits = state.splits.filter(s => s.currency === cur && s.shares.some(sh => sh.name === t.from));
-    
-    // 내(t.from)가 참여한 영수증들의 원래 주인(결제자)들과 각 영수증별 내가 내야 할 돈의 맵 생성
-    const rawDebits = {};
-    fromPayerSplits.forEach(s => {
-      const share = s.shares.find(sh => sh.name === t.from);
-      if (share && s.payer !== t.from) {
-        rawDebits[s.payer] = (rawDebits[s.payer] || 0) + share.amount;
-      }
-    });
-
-    let flowExplanation = "";
-    const itemsText = Object.entries(rawDebits).map(([payer, amt]) => `<b>${payer}</b>님에게 줄 돈 <b>${fmt(amt, cur)}</b>`).join(", ");
-
-    if (rawDebits[t.to] && Object.keys(rawDebits).length === 1) {
-      // 1. 순수 1:1 직진 정산일 때 (채무 관계가 꼬이지 않고 심플할 때)
-      flowExplanation = `원래 <b>${t.from}</b>님은 지출 명단에 따라 결제자이신 <b>${t.to}</b>님에게 직접 줄 돈이 있습니다. <b>${t.to}</b>님은 최종 대금을 환급받아야 하는 상태이므로, <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`;
-    } else {
-      // 2. 다각 거래관계가 얽혀 상계/우회가 일어날 때 (모든 중간 이동 경로를 투명하게 전치 서술)
-      let traceLog = [];
-      
-      Object.entries(rawDebits).forEach(([origPayer, myOrigAmt]) => {
-        if (origPayer === t.to) {
-          traceLog.push(`결제자이신 <b>${t.to}</b>님에게 줄 돈 <b>${fmt(myOrigAmt, cur)}</b>이 최종 송금액에 그대로 포함되었습니다.`);
-        } else {
-          // 중간 다리가 되는 사람이 최종 채권자에게 줘야 할 돈이 있는지 대조
-          const bridgeGiveToTarget = txns.find(txn => txn.from === origPayer && txn.to === t.to);
-          const bridgeRawBal = rawNet[origPayer] || 0;
+          // 원래 결제자도 다른 영수증 때문에 다른 사람에게 돈을 줘야 하는 상태일 때 (예: 이승재 -> 정직한 -> 조현지)
+          // 해당 통화에서 가장 돈을 많이 돌려받아야 하는 최종 채권자(조현지 등)를 수동 추적
+          let topCreditor = PRESET.map(name => ({ name, bal: getRawNetBalance(name, cur) })).sort((a,b) => b.bal - a.bal)[0];
           
-          if (bridgeRawBal < 0) {
-            traceLog.push(`원래 <b>${origPayer}</b>님에게 줄 돈 <b>${fmt(myOrigAmt, cur)}</b>이 있었으나, <b>${origPayer}</b>님 역시 최종 채권자인 <b>${t.to}</b>님에게 정산금을 보내야 하는 상태입니다. 따라서 과정 단축을 위해 <b>${t.from}</b>님이 <b>${origPayer}</b>님을 거치지 않고 <b>${t.to}</b>님에게 바로 합산하여 정산해주면 됩니다.`);
+          if (topCreditor && topCreditor.bal > 0) {
+            finalTarget = topCreditor.name;
+            subExplanation = `원래 <b>${esc(s.desc)}</b> 내역으로 인해 결제자인 <b>${s.payer}</b>님에게 <b>-${fmt(myShare.amount, cur)}</b>를 줘야 합니다. 하지만 <b>${s.payer}</b>님 역시 다른 영수증 지출 건으로 인해 최종 환급 대상자인 <b>${topCreditor.name}</b>님에게 줄 돈이 밀려있는 상태입니다. 따라서 과정 단축을 위해 <b>${s.payer}</b>님을 거치지 않고 <b>${topCreditor.name}</b>님에게 바로 정산해주면 됩니다.`;
           } else {
-            traceLog.push(`원래 <b>${origPayer}</b>님에게 줄 돈 <b>${fmt(myOrigAmt, cur)}</b>이 있었으나, 타 구성원 간의 얽힌 채무 정산 관계에 따라 이 금액이 상계 및 조정되어 최종적으로 환급 대상자인 <b>${t.to}</b>님에게 직접 정산해주면 됩니다.`);
+            subExplanation = `<b>${esc(s.desc)}</b> 내역 분담금으로 결제자이신 <b>${s.payer}</b>님에게 <b>-${fmt(myShare.amount, cur)}</b>를 정산해주면 됩니다.`;
           }
         }
-      });
-
-      flowExplanation = `<b>${t.from}</b>님은 장부상 원래 ${itemsText}이 얽혀있습니다. <br/><br/>디테일한 정산 흐름을 풀면 다음과 같습니다:<br/>` + traceLog.map(log => `➔ ${log}`).join("<br/>");
-    }
-
-    if(currentViewer === "전체보기" || t.from === currentViewer || t.to === currentViewer) {
-      html += `
-      <div class="flow-box">
-        <div class="flow-title">⛓️ 지출 내역별 정산 인과관계 완전 역추적</div>
-        ${flowExplanation}
-      </div>`;
-    }
+        
+        html += `
+        <div class="flow-box">
+          <div class="flow-title">➔ [내 분담] ${esc(s.desc)} (결제자: ${s.payer})</div>
+          내 분담 몫: <b>-${fmt(myShare.amount, cur)}</b><br/>
+          <div style="margin-top:4px; font-size:0.8rem; color:var(--ink-soft); font-weight:700;">🗣️ 정산 매칭 내역:</div>
+          <div style="font-size:0.8rem; color:#4A3525; background:#FFF1E6; padding:6px 8px; border-radius:6px; margin-top:3px;">
+            ${subExplanation}
+          </div>
+          <div style="margin-top:6px; font-weight:800; font-size:0.85rem; text-align:right; color:var(--terra);">
+            📍 결론: ${finalTarget}님에게 정산하기
+          </div>
+        </div>`;
+      }
+    });
+    
+    html += `</div>`;
   });
-
-  if(filteredTxns.length === 0) {
-    html += `<div class="empty" style="padding:20px 0; font-size:0.85rem;">정산 흐름상 주고받을 금액이 없습니다. 😎</div>`;
-  }
-
-  html += `</div>`;
+  
   return html;
 }
 
