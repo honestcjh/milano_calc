@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
 <title>IL CONTO · 밀라노 정산</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -76,10 +76,6 @@ input,select{font-family:'Nunito',sans-serif;}
 .ii-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .ii-amt{font-weight:900;font-size:1.05rem;white-space:nowrap;}
 .ii-actions{display:flex;gap:7px;margin-top:11px;}
-.badge{display:inline-block;font-size:.62rem;font-weight:800;padding:2px 8px;border-radius:999px;}
-.badge.pend{background:#FEF0C7;color:var(--pending);}
-.badge.acc{background:#D1FAE5;color:var(--credit);}
-.badge.edit{background:#FFE4DD;color:var(--debit);}
 
 /* ── FORM ── */
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
@@ -242,7 +238,7 @@ function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE)||"{}");
   if(c.record)state.record=c.record;if(c.me)state.me=c.me;}catch(e){}}
 function saveCache(){try{localStorage.setItem(CACHE,JSON.stringify({record:state.record,me:state.me}));}catch(e){}}
 
-/* ─── API ─── */
+/* ─── API (JSONBin 객체 구조 정상 정상화) ─── */
 async function fetchRecord(){
   const r = await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY}, cache: "no-store"});
   if(!r.ok)throw new Error("fetch "+r.status);
@@ -256,10 +252,13 @@ async function putRecord(rec){
   const r = await fetch(API,{
     method:"PUT",
     headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY},
-    body:JSON.stringify({ record: rec })
+    body:stringifyRecord(rec) // {record: rec} 중첩 포장 구문을 완전 제거 및 원상복구
   });
   if(!r.ok)throw new Error("HTTP "+r.status);
   return r;
+}
+function stringifyRecord(rec) {
+  return JSON.stringify({ members: rec.members, splits: rec.splits });
 }
 
 function mergePresets(rec){
@@ -312,7 +311,6 @@ function settleByCurrency(cur){
   state.record.splits.filter(s=>s.currency===cur).forEach(s=>{
     s.shares.forEach(sh=>{
       if(sh.memberId===s.payerId)return;
-      // "confirmed" 상태인 내역을 정상 합산 처리
       if(sh.status==="confirmed" || sh.status==="accepted"){
         net[s.payerId]=(net[s.payerId]||0)+sh.amount;
         net[sh.memberId]=(net[sh.memberId]||0)-sh.amount;
@@ -558,7 +556,7 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (고정 오픈 구조) ── */
+/* ── 영수증 (전체 열람형 오픈형 구조) ── */
 function historyHTML(){
   const splits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
@@ -706,14 +704,14 @@ async function doLogin(){
   } else {
     member.pin=pin;
     state.record=rec;
-    try {
+    try{
       await putRecord(rec);
       saveCache();
       state.me=member.id;
       lStep="pick";lPin="";lErr="";
       state.tab="home";render();
       toast("PIN이 설정됐어요 ✓");
-    } catch(e) {
+    }catch(e){
       lErr="저장에 실패했어요. 네트워크를 확인해주세요.";renderLogin();
     }
   }
@@ -765,7 +763,7 @@ async function handleAct(act,d){
       toast("거절했어요. 대기중으로 돌아가요");break;
     case "delsplit":
       if(!confirm("이 정산을 정말 삭제할까요?"))break;
-      await mutate(rec=>{rec.splits=rec.splits.filter(x!==sid);});toast("삭제했어요");break;
+      await mutate(rec=>{rec.splits=rec.splits.filter(x => x.id !== sid);});toast("삭제했어요");break;
     case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null});render();break;
     case "mremove":
       if(PRESET.find(p=>p.id===d.mid)){toast("프리셋 멤버는 삭제할 수 없어요");break;}
