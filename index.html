@@ -123,13 +123,14 @@ input,select{font-family:'Nunito',sans-serif;}
 .save:disabled{opacity:.5;}
 
 /* ── HISTORY ── */
-.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;position:relative;box-shadow:var(--shadow-sm);}
-.r-top{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:10px;}
+.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;position:relative;box-shadow:var(--shadow-sm);cursor:pointer;transition:background .15s;}
+.receipt:hover{background:var(--cream);}
+.r-top{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:10px;pointer-events:none;}
 .r-desc{font-weight:800;font-size:1rem;}
 .r-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .r-total{font-weight:900;font-size:1.1rem;white-space:nowrap;}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
-.del{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--ink-soft);font-size:.68rem;opacity:.5;}
+.del{position:absolute;top:12px;right:12px;background:#FFE9E4;border:none;color:var(--debit);font-size:.72rem;padding:6px 10px;border-radius:8px;font-weight:700;opacity:1;cursor:pointer;}
 
 /* ── MEMBERS ── */
 .mrow{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
@@ -178,7 +179,7 @@ input,select{font-family:'Nunito',sans-serif;}
 .receipt-expanded{max-height:1000px !important;overflow:visible;}
 .receipt-details{max-height:0;overflow:hidden;transition:max-height .25s ease;background:var(--cream);margin:0 -16px -16px;padding:0 16px}
 .receipt.expanded .receipt-details{max-height:1000px;padding:12px 16px 16px;}
-.receipt-toggle{background:none;border:none;color:var(--ink-soft);font-size:1.2rem;position:absolute;top:14px;right:14px;cursor:pointer;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.receipt-toggle{display:none;}
 .receipt.expanded .receipt-toggle{transform:rotate(180deg);}
 .settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
 .settle-item:last-child{border-bottom:none;}
@@ -797,10 +798,13 @@ function bind(){
   app.querySelectorAll("[data-toggle]").forEach(el=>el.addEventListener("click",()=>{form.checked[el.dataset.toggle]=!form.checked[el.dataset.toggle];render();}));
   app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
   app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.nick=el.value;}}));
-  // receipt 토글
-  app.querySelectorAll("[data-act='toggle']").forEach(b=>b.addEventListener("click",()=>{
-    const rid=b.dataset.rid;const el=document.getElementById(rid);
-    if(el){el.classList.toggle("expanded");}}));
+  // receipt 클릭해서 펼치기
+  app.querySelectorAll(".receipt").forEach(r=>{
+    r.addEventListener("click",(e)=>{
+      if(e.target.closest(".del"))return; // 삭제 버튼은 클릭 처리
+      const id=r.id;if(id)r.classList.toggle("expanded");
+    });
+  });
   
   app.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handleAct(b.dataset.act,b.dataset)));
 }
