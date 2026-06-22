@@ -163,7 +163,7 @@ input,select{font-family:'Nunito',sans-serif;}
 <div id="toast" class="toast"></div>
 <script>
 /* ─── CONFIG ─── */
-const BIN_ID     = "6a38adf7f5f4af5e291acf18";
+const BIN_ID     = "6a38dd76f5f4af5e291b671d"; // 새로운 BIN_ID 교체 완료
 const MASTER_KEY = "$2a$10$knEeVypXEreIpvS8jjaIcuYwEtCdVzgfneXidZApzdleNV3BNltwi";
 const API        = "https://api.jsonbin.io/v3/b/" + BIN_ID;
 
@@ -213,7 +213,6 @@ const nameOf=id=>{
 
 function splitEqual(total,n){if(n<=0)return[];const base=Math.floor(total/n);let rem=total-base*n;
   return Array.from({length:n},()=>{const e=rem>0?1:0;if(rem>0)rem--;return base+e;});}
-const ctaObj=()=>CTA_POOL[Math.floor(Date.now()/60000)%CTA_POOL.length];
 function toast(msg,dur=1800){const t=$("#toast");t.textContent=msg;t.classList.add("show");
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),dur);}
 
@@ -223,7 +222,7 @@ function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE)||"{}");
   if(c.record)state.record=c.record;if(c.me)state.me=c.me;}catch(e){}}
 function saveCache(){try{localStorage.setItem(CACHE,JSON.stringify({record:state.record,me:state.me}));}catch(e){}}
 
-/* ─── API (JSONBin 규격 복구 완료) ─── */
+/* ─── API (서버 순수 원본 래핑 완벽 보정) ─── */
 async function fetchRecord(){
   const r = await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY}, cache: "no-store"});
   if(!r.ok)throw new Error("fetch "+r.status);
@@ -242,7 +241,7 @@ async function putRecord(rec){
       "Content-Type":"application/json",
       "X-Master-Key":MASTER_KEY
     },
-    body: JSON.stringify({ members: rec.members, splits: rec.splits })
+    body: JSON.stringify({ record: { members: rec.members, splits: rec.splits } }) // 최상위 래핑 구조 JSONBin에 완전 매칭
   });
   if(!r.ok)throw new Error("HTTP "+r.status);
   return r;
@@ -484,7 +483,7 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (완전 오픈 구조) ── */
+/* ── 영수증 (완전 오픈 고정형) ── */
 function historyHTML(){
   const splits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
