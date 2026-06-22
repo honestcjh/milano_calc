@@ -292,7 +292,7 @@ function historyHTML() {
         ${s.shares.map(sh => `<div class="share-line">
           <span>${esc(sh.name)}</span><span class="dots"></span><span class="num">${fmt(sh.amount, s.currency)}</span>
         </div>`).join("")}
-        <button class="btn danger" style="width:100%; margin-top:16px;" data-act="delsplit" data-idx="${realIdx}">이 영수증 내역 삭제</button>
+        <button class="btn danger delBtn" data-idx="${realIdx}" style="width:100%; margin-top:16px;">이 영수증 내역 삭제</button>
       </div>
     </div>`;
   }).join("");
@@ -329,14 +329,13 @@ function bindEvents() {
     $("#submitBtn").addEventListener("click", handleCreate);
   }
 
-  app.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", async () => {
-    if(b.dataset.act === "delsplit") {
-      if(!confirm("이 정산 내역을 정말 삭제할까요?")) return;
-      const idx = parseInt(b.dataset.idx);
-      const nextSplits = state.splits.filter((_, i) => i !== idx);
-      await saveData(nextSplits);
-      loadData();
-    }
+  // 선언 오류 수정: document.querySelectorAll 형태로 명확히 바인딩 처리
+  document.querySelectorAll(".delBtn").forEach(b => b.addEventListener("click", async () => {
+    if(!confirm("이 정산 내역을 정말 삭제할까요?")) return;
+    const idx = parseInt(b.dataset.idx);
+    const nextSplits = state.splits.filter((_, i) => i !== idx);
+    await saveData(nextSplits);
+    loadData();
   }));
 }
 
