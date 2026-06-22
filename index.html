@@ -4,195 +4,92 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
 <title>IL CONTO · 밀라노 정산</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin"/>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet"/>
 <style>
-:root{
-  --cream:#FFF8F2;--card:#FFFFFF;--ink:#2C1A0E;--ink-soft:#8A6E62;
-  --line:#EEE5DD;--terra:#E8694A;--terra-d:#C9512F;--sun:#F2B134;
-  --sage:#3A9163;--credit:#2E8A5C;--debit:#D94F30;--pending:#C07828;
-  --shadow:0 4px 16px rgba(44,26,14,.06);--shadow-sm:0 2px 8px rgba(44,26,14,.04);
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;}
-body{font-family:'Nunito',sans-serif;background:var(--cream);color:var(--ink);line-height:1.5;}
-#app{max-width:560px;margin:0 auto;min-height:100vh;}
-.num{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;}
-.credit{color:var(--credit);}.debit{color:var(--debit);}.zero{color:var(--ink-soft);}
-button{font-family:'Nunito',sans-serif;cursor:pointer;}
-input,select{font-family:'Nunito',sans-serif;}
-
-/* ── HEADER ── */
-.hdr{position:fixed;top:0;left:0;right:0;z-index:20;background:var(--card);
-  box-shadow:0 1px 0 var(--line),0 2px 12px rgba(44,26,14,.06);}
-.hdr-in{max-width:560px;margin:0 auto;padding:12px 18px 0;}
-.hdr-top{display:flex;justify-content:space-between;align-items:center;padding-bottom:4px;}
-.brand-wrap{display:flex;align-items:baseline;gap:8px;}
-.brand{font-size:1.6rem;font-weight:900;letter-spacing:-.03em;
-  background:linear-gradient(135deg,var(--terra) 0%,var(--sun) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.brand-sub{font-size:.6rem;font-weight:800;letter-spacing:.18em;color:var(--ink-soft);text-transform:uppercase;}
-.icon-btn{background:none;border:1.5px solid var(--line);border-radius:999px;
-  padding:6px 14px;font-size:.75rem;color:var(--ink-soft);font-weight:800;}
-.tabs{display:flex;gap:2px;margin-top:12px;}
-.tab{flex:1;background:none;border:none;padding:10px 2px;font-size:.78rem;font-weight:800;
-  color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;}
-.tab.on{color:var(--terra);border-bottom-color:var(--terra);}
-.content{padding:124px 16px 20px;}
-
-/* ── DASHBOARD VISUAL COMPONENTS ── */
-.card{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:var(--shadow);}
-.sec-h{font-size:.75rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
-.cta{width:100%;background:linear-gradient(135deg,var(--terra) 0%,#F08050 100%);
-  color:#fff;border:none;border-radius:18px;padding:20px;text-align:center;
-  margin-bottom:16px;box-shadow:0 6px 20px rgba(232,105,74,.3);font-size:1.1rem;font-weight:900;}
-
-/* ── VISUAL DASHBOARD CHART BAR ── */
-.visual-bar-container {width:100%; height:8px; background:#F0E6DF; border-radius:999px; margin:6px 0 12px; overflow:hidden; position:relative;}
-.visual-bar-fill {height:100%; border-radius:999px; transition:width 0.3s ease;}
-.visual-bar-fill.plus {background:linear-gradient(90deg, var(--sun), var(--sage));}
-.visual-bar-fill.minus {background:linear-gradient(90deg, #F0A08F, var(--terra));}
-
-/* ── WALLET CARD ── */
-.wallet{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:var(--shadow);}
-.w-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
-.w-cell{background:var(--cream);border-radius:14px;padding:12px 14px;}
-.w-cell .lbl{font-size:.68rem;color:var(--ink-soft);font-weight:800;margin-bottom:2px;}
-.w-cell .val{font-size:1.15rem;font-weight:900;}
-.settle-item{display:flex;align-items:center;font-size:.92rem;padding:10px 0;border-bottom:1px solid var(--line);}
-.settle-item:last-child{border-bottom:none;}
-
-/* ── FORM & HISTORY ── */
-.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
-.field input, .field select{font-size:.95rem;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;background:#fff;width:100%;color:var(--ink);font-weight:700;}
-.seg{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
-.seg button{flex:1;padding:11px 6px;border:1.5px solid var(--line);background:#fff;border-radius:11px;font-size:.8rem;font-weight:800;color:var(--ink-soft);}
-.seg button.on{background:var(--terra);color:#fff;border-color:var(--terra);}
-.people{border-top:1px dashed var(--line);padding-top:12px;}
-.prow{display:flex;align-items:center;gap:10px;padding:6px 0;}
-.chk{display:flex;align-items:center;gap:10px;flex:1;user-select:none;cursor:pointer;}
-.box{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;position:relative;flex:none;}
-.box.on{background:var(--terra);border-color:var(--terra);}
-.amt{width:110px;font-size:.9rem;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;text-align:right;font-weight:700;}
-.save{width:100%;background:linear-gradient(135deg,var(--terra),#F08050);color:#fff;border:none;border-radius:13px;padding:16px;font-size:1rem;font-weight:900;box-shadow:0 4px 14px rgba(232,105,74,.3);margin-top:12px;}
-.receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);}
-.flow-box{background:var(--cream);border-radius:12px;padding:12px;font-size:0.82rem;color:var(--ink);margin-top:8px;border-left:4px solid var(--terra);line-height:1.45;box-shadow:var(--shadow-sm);}
-.flow-title{font-weight:900;color:var(--terra);margin-bottom:4px;font-size:0.88rem;}
+:root{--cream:#FFF8F2;--card:#FFFFFF;--ink:#2C1A0E;--terra:#E8694A;--shadow:0 4px 16px rgba(44,26,14,.06);}
+body{font-family:sans-serif;background:var(--cream);color:var(--ink);margin:0;padding:0;}
+#app{max-width:560px;margin:0 auto;}
+.hdr{position:fixed;top:0;left:0;right:0;background:var(--card);padding:10px;box-shadow:var(--shadow);z-index:20;}
+.tabs{display:flex;gap:5px;margin-top:10px;}
+.tab{flex:1;padding:10px;border:none;background:#eee;border-radius:8px;font-weight:bold;}
+.tab.on{background:var(--terra);color:#fff;}
+.content{padding:140px 15px 20px;}
+.card{background:var(--card);padding:15px;border-radius:15px;margin-bottom:10px;box-shadow:var(--shadow);}
+.btn{padding:10px;border-radius:8px;border:none;background:var(--terra);color:#fff;width:100%;font-weight:bold;margin-top:10px;}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-const BIN_ID="6a38dd76f5f4af5e291b671d", MASTER_KEY="$2a$10$lnj2XARlHWVJZ4Vkc3YtNuH.64V8zJei.7NfckLaIR8Py6ZCdkZCa", API="https://api.jsonbin.io/v3/b/"+BIN_ID;
+const BIN_ID="6a38dd76f5f4af5e291b671d", MASTER_KEY="$2a$10$lnj2XARlHWVJZ4Vkc3YtNuH.64V8zJei.7NfckLaIR8Py6ZCdkZCa";
 const PRESET = ["김가영","김민준","김주희","김진현","심성태","양보윤","이승재","이원태","정직한","정현주","조현지","최필성"];
-const CUR = { EUR:{sym:"€",factor:100}, KRW:{sym:"₩",factor:1}, TRY:{sym:"₺",factor:100} };
-
-let state = { splits: [] }, activeTab = "home", form = null, currentViewer = "전체보기", currentCurrency = "EUR";
-
-const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt=(minor,c)=>(CUR[c]?.sym||"")+(minor/(CUR[c]?.factor||1)).toLocaleString("ko-KR",{minimumFractionDigits:CUR[c]?.factor>1?2:0,maximumFractionDigits:CUR[c]?.factor>1?2:0});
+let state = { splits: [] }, activeTab = "home", currentViewer = "전체보기", currentCurrency = "EUR";
 
 async function loadData() {
-  try {
-    const r = await fetch(API+"/latest", { headers:{"X-Master-Key":MASTER_KEY}, cache:"no-store" });
-    if(r.ok) {
-      const j = await r.json();
-      state.splits = Array.isArray(j.record?.splits) ? j.record.splits : [];
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers:{"X-Master-Key":MASTER_KEY} });
+  if(r.ok) {
+    const j = await r.json();
+    state.splits = j.record?.splits || [];
+    // 데이터가 있는 첫 통화로 자동 전환
+    if(state.splits.length > 0 && !state.splits.some(s=>s.currency===currentCurrency)) {
+      currentCurrency = state.splits[0].currency;
     }
-  } catch(e) { console.error(e); }
+  }
   render();
 }
 
-async function saveData(newSplits) {
-  try {
-    const r = await fetch(API, { method:"PUT", headers:{"Content-Type":"application/json", "X-Master-Key":MASTER_KEY}, body:JSON.stringify({record:{splits:newSplits}}) });
-    if(!r.ok) throw new Error();
-    state.splits = newSplits;
-    loadData();
-  } catch(e) { alert("저장 실패"); }
-}
-
-function getRawBalances(cur) {
-  const net = {}; PRESET.forEach(p => net[p] = 0);
-  state.splits.filter(s => s.currency === cur).forEach(s => {
-    s.shares.forEach(sh => { if(sh.name !== s.payer) { net[s.payer] += sh.amount; net[sh.name] -= sh.amount; }});
-  });
-  return net;
-}
-
 function render() {
-  $("#app").innerHTML = `
-  <div class="hdr"><div class="hdr-in">
-    <div class="hdr-top"><div class="brand-wrap"><div class="brand">IL CONTO</div><div class="brand-sub">밀라노 정산</div></div>
-    <button class="icon-btn" onclick="loadData()">↻</button></div>
+  document.getElementById("app").innerHTML = `
+  <div class="hdr">
+    <div style="display:flex;justify-content:space-between;"><b>IL CONTO</b> <button onclick="loadData()">새로고침</button></div>
     <div class="tabs">
       <button class="tab ${activeTab==='home'?'on':''}" onclick="activeTab='home';render()">🏠 대시보드</button>
-      <button class="tab ${activeTab==='create'?'on':''}" onclick="activeTab='create';form=null;render()">💳 정산 입력</button>
-      <button class="tab ${activeTab==='history'?'on':''}" onclick="activeTab='history';render()">🧾 영수증 장부</button>
+      <button class="tab ${activeTab==='create'?'on':''}" onclick="activeTab='create';render()">💳 정산 입력</button>
+      <button class="tab ${activeTab==='history'?'on':''}" onclick="activeTab='history';render()">🧾 영수증</button>
     </div>
-  </div></div>
+  </div>
   <div class="content">${activeTab==='home'?homeHTML():activeTab==='create'?createHTML():historyHTML()}</div>`;
 }
 
 function homeHTML() {
-  let html = `
-  <div class="seg" style="justify-content:center;">${["EUR","KRW","TRY"].map(c => `<button class="${currentCurrency===c?'on':''}" onclick="currentCurrency='${c}';render()">${CUR[c].sym} ${c}</button>`).join("")}</div>
-  <div class="card">
-    <select id="viewer" onchange="currentViewer=this.value;render()">
-      <option value="전체보기" ${currentViewer==='전체보기'?'selected':''}>📊 구성원 전체 정산 리포트</option>
-      ${PRESET.map(p => `<option value="${p}" ${currentViewer===p?'selected':''}>👤 ${p}님 맞춤 조회</option>`).join("")}
-    </select>
-  </div>`;
+  let html = `<div style="display:flex;gap:5px;margin-bottom:10px;">${["EUR","KRW","TRY"].map(c=>`<button class="tab ${currentCurrency===c?'on':''}" onclick="currentCurrency='${c}';render()">${c}</button>`).join("")}</div>
+  <select style="width:100%;padding:10px;" onchange="currentViewer=this.value;render()">
+    <option value="전체보기">📊 전체 현황</option>${PRESET.map(p=>`<option value="${p}" ${currentViewer===p?'selected':''}>👤 ${p}님 보기</option>`).join("")}
+  </select>`;
   
-  const rawNet = getRawBalances(currentCurrency);
-  const totalShares = state.splits.filter(s => s.currency === currentCurrency);
-  
-  if(totalShares.length === 0) return html + `<div class="empty">내역이 없습니다.</div>`;
+  const relevant = state.splits.filter(s => s.currency === currentCurrency);
+  if(relevant.length === 0) return html + `<p>내역이 없습니다.</p>`;
 
-  html += `<div class="wallet">`;
-  if(currentViewer === "전체보기") {
-    PRESET.forEach(n => {
-      if(rawNet[n]===0) return;
-      html += `<div style="margin-bottom:10px;"><div style="display:flex; justify-content:space-between; font-weight:800;"><span>${n}</span><span>${fmt(rawNet[n], currentCurrency)}</span></div>
-      <div class="visual-bar-container"><div class="visual-bar-fill ${rawNet[n]>0?'plus':'minus'}" style="width:${Math.min(100, Math.abs(rawNet[n]/10000)*100)}%"></div></div></div>`;
-    });
-  } else {
-    const val = rawNet[currentViewer] || 0;
-    html += `<div class="w-grid"><div class="w-cell"><div class="lbl">최종 상태</div><div class="val ${val>=0?'credit':'debit'}">${val>=0?'💸 돌려받기':'🔒 보내기'}</div></div>
-    <div class="w-cell"><div class="lbl">정산액</div><div class="val">${fmt(val, currentCurrency)}</div></div></div>`;
-    
-    totalShares.forEach(s => {
-      const share = s.shares.find(sh => sh.name === currentViewer);
-      if(s.payer === currentViewer || share) {
-        html += `<div class="flow-box"><div class="flow-title">🧾 ${s.desc} (결제: ${s.payer})</div>
-        ${s.payer===currentViewer ? `일행 몫으로 <b>+${fmt(s.shares.reduce((a,b)=>a+b.amount,0)-(share?share.amount:0), currentCurrency)}</b> 받기` : `내 분담금 <b>-${fmt(share.amount, currentCurrency)}</b> 정산 필요`}<br>
-        <div style="margin-top:5px; font-weight:800; color:var(--terra);">➔ ${s.payer===currentViewer ? '결제자 본인' : s.payer}에게 정산</div></div>`;
-      }
-    });
-  }
-  return html + `</div>`;
+  relevant.forEach(s => {
+    html += `<div class="card"><b>${s.desc}</b> (결제: ${s.payer})<br>${s.shares.map(sh=>`${sh.name}:${sh.amount}`).join(", ")}</div>`;
+  });
+  return html;
 }
 
 function createHTML() {
-  if(!form) form = { payer: PRESET[0], currency: "EUR", desc: "", total: "", method: "equal", checked: Object.fromEntries(PRESET.map(p=>[p, p===PRESET[0]])) };
-  return `<div class="card"><div class="field"><span>결제자</span><select onchange="form.payer=this.value;render()">${PRESET.map(p=>`<option ${form.payer===p?'selected':''}>${p}</option>`).join("")}</select></div>
-  <div class="field"><span>내용</span><input oninput="form.desc=this.value" value="${esc(form.desc)}"></div>
-  <div class="field"><span>총액</span><input oninput="form.total=this.value" value="${esc(form.total)}"></div>
-  <button class="save" onclick="handleCreate()">입력 완료</button></div>`;
+  return `<div class="card">
+    결제자: <select id="payer">${PRESET.map(p=>`<option>${p}</option>`).join("")}</select><br>
+    내용: <input id="desc"><br>금액: <input id="amt" type="number"><br>
+    <button class="btn" onclick="save()">입력 완료</button>
+  </div>`;
 }
 
 function historyHTML() {
-  return state.splits.map((s,i) => `<div class="receipt"><div class="r-top"><span>${esc(s.desc)}</span><span class="r-total">${fmt(s.shares.reduce((a,b)=>a+b.amount,0), s.currency)}</span></div>
-  <button class="btn danger" onclick="if(confirm('삭제?')) {state.splits.splice(${i},1); saveData(state.splits)}">삭제</button></div>`).join("");
+  return state.splits.map((s,i) => `<div class="card">${s.desc} - ${s.payer} <button onclick="del(${i})">삭제</button></div>`).join("");
 }
 
-async function handleCreate() {
-  if(!form.desc) return alert("내용 입력");
-  const shares = PRESET.filter(p=>form.checked[p]).map(name=>({name, amount:Math.round(toMinor(form.total, form.currency)/PRESET.filter(p=>form.checked[p]).length)}));
-  await saveData([...state.splits, {payer:form.payer, currency:form.currency, desc:form.desc, shares}]);
+async function save() {
+  const d = { payer:document.getElementById("payer").value, currency:currentCurrency, desc:document.getElementById("desc").value, 
+              shares:PRESET.filter(p=>p!==document.getElementById("payer").value).map(p=>({name:p, amount:Math.round(document.getElementById("amt").value/(PRESET.length-1))})) };
+  await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, { method:"PUT", headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY}, body:JSON.stringify({record:{splits:[...state.splits, d]}}) });
+  loadData();
 }
+
+async function del(i) {
+  state.splits.splice(i,1);
+  await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, { method:"PUT", headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY}, body:JSON.stringify({record:{splits:state.splits}}) });
+  loadData();
+}
+
 loadData();
 </script>
 </body>
