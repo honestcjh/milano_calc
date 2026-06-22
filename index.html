@@ -90,14 +90,15 @@ input,select{font-family:'Nunito',sans-serif;}
 .dots{flex:1;border-bottom:1.5px dotted var(--line);margin:0 8px;transform:translateY(-3px);}
 .save{width:100%;background:linear-gradient(135deg,var(--terra),#F08050);color:#fff;border:none;border-radius:13px;padding:16px;font-size:1rem;font-weight:900;box-shadow:0 4px 14px rgba(232,105,74,.3);margin-top:12px;}
 
-/* ── HISTORY ── */
+/* ── HISTORY & EXPLANATION FLOW ── */
 .receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);}
 .r-top{display:flex;justify-content:space-between;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line);font-weight:800;}
 .r-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .r-total{color:var(--terra);font-size:1.05rem;}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
 
-.flow-box{background:var(--cream);border-radius:10px;padding:10px;font-size:0.8rem;color:var(--ink);margin-top:6px;border-left:4px solid var(--sun);line-height:1.4;}
+.flow-box{background:var(--cream);border-radius:10px;padding:11px;font-size:0.8rem;color:var(--ink);margin-top:6px;border-left:4px solid var(--terra);line-height:1.45;}
+.flow-title{font-weight:800;color:var(--terra);margin-bottom:3px;display:flex;align-items:center;gap:4px;}
 
 .empty{text-align:center;color:var(--ink-soft);padding:44px 18px;font-weight:600;}
 .foot{text-align:center;font-size:.66rem;color:var(--ink-soft);padding:18px;}
@@ -290,14 +291,12 @@ function viewHTML(ctaText) {
     const rawNet = getRawBalances(cur);
     const txns = calculateDebts(cur);
     
-    // 지출 내역이 하나도 없으면 패스
     if(!state.splits.some(s => s.currency === cur)) return;
     hasData = true;
     
     html += `<div class="wallet">
       <div class="wallet-h">💰 ${cur} 장부 흐름 분석</div>`;
 
-    // 1단계: 장부상 원본 정산액 현황 표기
     if(currentViewer === "전체보기") {
       html += `
       <div class="sec-h" style="font-size:0.65rem; color:var(--ink-soft); margin-top:4px;">1단계: 개인별 원래 장부상 정산액</div>
@@ -312,7 +311,6 @@ function viewHTML(ctaText) {
         }).join("")}
       </div>`;
     } else {
-      // 특정 개인 필터 뷰어일 때 원래 줄 돈/받을 돈 요약 노출
       const myRawVal = rawNet[currentViewer] || 0;
       html += `
       <div class="sec-h" style="font-size:0.65rem; color:var(--ink-soft); margin-top:4px;">1단계: ${currentViewer}님의 원래 장부상 정산액</div>
@@ -324,18 +322,11 @@ function viewHTML(ctaText) {
       </div>`;
     }
 
-    // 2단계: 줄 돈과 받을 돈 인과관계 해설 및 최종 안내 명시
     html += `<div class="sec-h" style="font-size:0.65rem; color:var(--ink-soft);">2단계: 송금 최적화 경로 및 인과관계 매칭 결과</div>`;
     
-    let owe = 0, recv = 0;
     let filteredTxns = txns;
-    
     if(currentViewer !== "전체보기") {
       filteredTxns = txns.filter(t => t.from === currentViewer || t.to === currentViewer);
-      txns.forEach(t => {
-        if(t.from === currentViewer) owe += t.amt;
-        if(t.to === currentViewer) recv += t.amt;
-      });
     }
 
     filteredTxns.forEach(t => {
@@ -345,14 +336,28 @@ function viewHTML(ctaText) {
         <span class="num debit" style="font-weight:700; color:${t.to===currentViewer?'var(--credit)':'var(--debit)'}">${fmt(t.amt, cur)}</span>
       </div>`;
       
-      // 인과관계 매칭 스토리 주석 생성
-      // 원본 정산액에서 채권/채무가 얽힌 스토리를 사용자 친화적으로 해설
-      const fromRaw = rawNet[t.from] || 0;
-      const toRaw = rawNet[t.to] || 0;
+      // 인과관계 정밀 매칭 알고리즘 기반 해설 추적 엔진
+      // 1. 돈을 내야 하는 사람(from)이 참여했던 실제 영수증 원본 결제자들을 추출
+      const fromPayerSplits = state.splits.filter(s => s.currency === cur && s.shares.some(sh => sh.name === t.from));
+      const originalPayers = [...new Set(fromPayerSplits.map(s => s.payer))].filter(p => p !== t.from);
+      
+      // 2. 그 원본 결제자들 중, 최종 채권자(to)에게 돈을 토해내야 하는 사람들을 교차 검증
+      const bridgePayers = originalPayers.filter(p => (rawNet[p] || 0) <= 0 || txns.some(txn => txn.from === p && txn.to === t.to));
+      
+      let flowExplanation = "";
+      if(bridgePayers.length > 0) {
+        // 인과관계 연결 스토리가 존재하는 경우
+        const bridgesStr = bridgePayers.join(", ");
+        flowExplanation = `원래 <b>${t.from}</b>님은 같이 지출을 소비했던 영수증 결제자(<b>${bridgesStr}</b>)에게 줄 돈이 있습니다. 하지만 <b>${bridgesStr}</b>님 역시 다른 영수증 건(예: 택시비 등)으로 인해 최종 결제자인 <b>${t.to}</b>님에게 돈을 토해내야 하는 상태입니다. 따라서 동선이 꼬이지 않게 <b>${t.from}</b>님이 중간 단계를 건너뛰고 <b>${t.to}</b>님에게 직접 토스해 주는 흐름입니다.`;
+      } else {
+        // 단순 정산액 상계 처리인 경우
+        flowExplanation = `<b>${t.from}</b>님이 모임에 내야 하는 정산액 총액 중 일부가, 이번 모임에서 지출을 가장 많이 하여 최종 대금을 돌려받아야 하는 채권자 <b>${t.to}</b>님에게 다이렉트로 매칭되어 전달되는 인과관계 흐름입니다.`;
+      }
+
       if(currentViewer === "전체보기" || t.from === currentViewer || t.to === currentViewer) {
         html += `<div class="flow-box">
-          💡 <b>흐름 해설:</b> 원래 <b>${t.from}</b>님은 지출 정산액이 마이너스(${fmt(fromRaw, cur)})이고, 
-          최종 결제 대금을 정산받아야 할 대상인 <b>${t.to}</b>님에게 정산 최적화 동선에 따라 이 금액을 다이렉트로 전달하게 됩니다.
+          <div class="flow-title">⛓️ 정산 인과관계 매칭 추적</div>
+          ${flowExplanation}
         </div>`;
       }
     });
@@ -490,7 +495,6 @@ function bindEvents() {
   }
 }
 
-// 글로벌 안전 삭제 연동부
 document.addEventListener("click", async function(e) {
   if(e.target && e.target.classList.contains("delBtn")) {
     if(!confirm("이 정산을 정말 삭제할까요?")) return;
@@ -505,7 +509,7 @@ document.addEventListener("click", async function(e) {
 async function handleCreate() {
   if(!form.desc.trim()) { alert("지출 내용을 적어주세요."); return; }
   const ids = PRESET.filter(p => form.checked[p]);
-  if(ids.length === 0) { alert("참여자가 최소 1명 이상 골라주세요."); return; }
+  if(ids.length === 0) { alert("참여자를 최소 1명 이상 골라주세요."); return; }
 
   let shares = [];
   if(form.method === "equal") {
