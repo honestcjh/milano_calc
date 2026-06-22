@@ -93,21 +93,30 @@ input,select{font-family:'Nunito',sans-serif;}
 
 <script>
 /* ─── CONFIG ─── */
-const BIN_ID     = "6a38dd76f5f4af5e291b671d"; 
-const MASTER_KEY = "$2a$10$knEeVypXEreIpvS8jjaIcuYwEtCdVzgfneXidZApzdleNV3BNltwi";
+const BIN_ID     = "6a38dd76f5f4af5e291b671d";
+const MASTER_KEY = "$2a$10$lnj2XARlHWVJZ4Vkc3YtNuH.64V8zJei.7NfckLaIR8Py6ZCdkZCa";
 const API        = "https://api.jsonbin.io/v3/b/" + BIN_ID;
 
-const PRESET = ["김가영","김민준","김주희","김진현","심성태","양보윤","이승재","이원태","정직한","정현주","조현지","최필성"];
-const CUR = { EUR:{sym:"€",factor:100}, KRW:{sym:"₩",factor:1}, TRY:{sym:"₺",factor:100} };
+const PRESET = [
+  "김가영","김민준","김주희","김진현",
+  "심성태","양보윤","이승재","이원태",
+  "정직한","정현주","조현지","최필성"
+];
 
-const CTA_POOL=[
+const CUR = {
+  EUR:{sym:"€",factor:100},
+  KRW:{sym:"₩",factor:1},
+  TRY:{sym:"₺",factor:100}
+};
+
+const CTA_POOL = [
   "이번엔 제 카드로 하시죠 →",
   "잠깐, 제가 긁겠습니다 →",
   "오늘은 제가 한 번 쏠게요 →",
   "이번엔 제가 결제 해보겠습니다 →",
   "오늘 식사, 제가 책임지겠습니다 →"
 ];
-
+  
 /* ─── STATE ─── */
 let state = { splits: [] };
 let activeTab = "home";
