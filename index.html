@@ -175,6 +175,11 @@ input,select{font-family:'Nunito',sans-serif;}
 .nick-chip{background:var(--cream);border:1px solid var(--line);border-radius:999px;
   padding:4px 10px;font-size:.75rem;font-weight:700;color:var(--ink-soft);}
 
+.receipt-expanded{max-height:1000px !important;overflow:visible;}
+.receipt-details{max-height:0;overflow:hidden;transition:max-height .25s ease;background:var(--cream);margin:0 -16px -16px;padding:0 16px}
+.receipt.expanded .receipt-details{max-height:1000px;padding:12px 16px 16px;}
+.receipt-toggle{background:none;border:none;color:var(--ink-soft);font-size:1.2rem;position:absolute;top:14px;right:14px;cursor:pointer;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.receipt.expanded .receipt-toggle{transform:rotate(180deg);}
 .settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
 .settle-item:last-child{border-bottom:none;}
 /* ── MISC ── */
@@ -611,47 +616,50 @@ function createHTML(){
 
 /* ── 영수증 ── */
 function historyHTML(){
-  const ADMIN="pm09"; // 정직한 = 관리자
+  const ADMIN="pm09";
   const isAdmin=state.me===ADMIN;
   const allSplits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
-  // 내가 관련된 것만 (관리자는 전체)
   const splits=isAdmin?allSplits:
     allSplits.filter(s=>s.payerId===state.me||s.shares.some(sh=>sh.memberId===state.me));
-  if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낼게 탭에서 정산을 등록해보세요!</div>`;
+  if(!splits.length)return`<div class="empty">내가 참여한 영수증이 없어요 🧾<br>내가낄게 탭에서 정산을 등록해보세요!</div>`;
   return splits.map(s=>{
     const cur=s.currency,total=s.shares.reduce((t,x)=>t+x.amount,0);
     const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
     const canDelete=s.payerId===state.me||isAdmin;
-    return`<div class="receipt">
+    const recId="rec"+s.id;
+    return`<div class="receipt" id="${recId}">
+      <button class="receipt-toggle" data-act="toggle" data-rid="${recId}">⌄</button>
       <div class="r-top">
         <div>
           <div class="r-desc">${esc(s.desc)}${isAdmin&&s.payerId!==state.me
             ?` <span class="badge pend" style="font-size:.56rem;padding:1px 5px">관리자뷰</span>`:""}</div>
-          <div class="r-meta">${when} · ${CUR[cur].name} · <b>${esc(nameOf(s.payerId))}</b> 결제</div>
+          <div class="r-meta">${when} · ${CUR[cur].name}</div>
         </div>
         <div class="r-total num">${fmt(total,cur)}</div>
       </div>
-      ${s.shares.map(sh=>{
-        const isMe=sh.memberId===state.me;
-        const isPayer=sh.memberId===s.payerId;
-        const b=sh.status==="confirmed"?`<span class="badge acc">확정</span>`
-          :sh.status==="edit_requested"?`<span class="badge edit">수정요청</span>`
-          :"";
-        const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
-        return`<div>
-          <div class="share-line">
-            <span class="pname">${esc(nameOf(sh.memberId))}${isPayer?" (결제자)":""} ${b}</span>
+      <div class="receipt-details">
+        <div style="border-top:1px dashed var(--line);padding-top:10px;margin-top:8px">
+          <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">결제자</div>
+          <div class="share-line" style="padding:0 0 10px;margin-bottom:10px;border-bottom:1px solid var(--line)">
+            <span class="pname"><b>${esc(nameOf(s.payerId))}</b></span>
             <span class="dots"></span>
-            <span class="num" style="font-size:.86rem">${fmt(amt,cur)}</span>
+            <span class="num">${fmt(total,cur)}</span>
           </div>
-          ${isMe&&!isPayer&&sh.status==="edit_requested"
-            ?`<div style="margin:4px 0 8px 28px">
-                <button class="btn" style="padding:7px 16px;font-size:.78rem;flex:none;width:auto;color:var(--debit)"
-                  data-act="reqedit" data-sid="${s.id}">💬 수정 제안하기</button>
-              </div>`:""}
-        </div>`;
-      }).join("")}
+          <div style="font-size:.72rem;font-weight:700;color:var(--ink-soft);margin-bottom:8px">분담자</div>
+          ${s.shares.map(sh=>{
+            if(sh.memberId===s.payerId)return "";
+            const isMe=sh.memberId===state.me;
+            const b=sh.status==="edit_requested"?`<span class="badge edit" style="font-size:.6rem">수정요청</span>`:"";
+            const amt=sh.status==="edit_requested"?sh.proposed:sh.amount;
+            return`<div class="share-line">
+              <span class="pname">${esc(nameOf(sh.memberId))}${isMe?" <span class='me-tag'>나</span>":""} ${b}</span>
+              <span class="dots"></span>
+              <span class="num" style="font-size:.88rem">${fmt(amt,cur)}</span>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>
       ${canDelete?`<button class="del" data-act="delsplit" data-sid="${s.id}">삭제</button>`:""}
     </div>`;
   }).join("");
@@ -789,6 +797,11 @@ function bind(){
   app.querySelectorAll("[data-toggle]").forEach(el=>el.addEventListener("click",()=>{form.checked[el.dataset.toggle]=!form.checked[el.dataset.toggle];render();}));
   app.querySelectorAll("[data-amt]").forEach(el=>el.addEventListener("input",()=>{form.amounts[el.dataset.amt]=el.value;}));
   app.querySelectorAll("[data-mname]").forEach(el=>el.addEventListener("input",()=>{const m=mdraft.find(x=>x.id===el.dataset.mname);if(m){m.nick=el.value;}}));
+  // receipt 토글
+  app.querySelectorAll("[data-act='toggle']").forEach(b=>b.addEventListener("click",()=>{
+    const rid=b.dataset.rid;const el=document.getElementById(rid);
+    if(el){el.classList.toggle("expanded");}}));
+  
   app.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>handleAct(b.dataset.act,b.dataset)));
 }
 
@@ -859,7 +872,11 @@ async function createSplit(){
   const split={id:uid(),payerId:state.me,currency:cur,desc:form.desc.trim(),
     date:form.day,timeSlot:form.timeSlot,method:form.method,shares,createdAt:Date.now()};
   const ok=await mutate(rec=>rec.splits.push(split));
-  if(ok){form=null;state.tab="home";toast("등록 완료! 다른 분들은 ↻ 새로고침을 눌러주세요 📢",3500);render();}
+  if(ok){
+    form=null;state.tab="home";
+    toast("✅ 정산이 등록되었어요!\n\n다른 멤버들은 우상단 ↻ 새로고침 버튼을 눌러서 확인할 수 있어요",4000);
+    render();
+  }
 }
 
 /* ─── 화면 에러 표시 (모바일 디버그용) ─── */
