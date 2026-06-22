@@ -201,16 +201,11 @@ const PRESET = [
   {id:"pm10",name:"정현주"},{id:"pm11",name:"조현지"},{id:"pm12",name:"최필성"},
 ];
 
-/* 닉네임 힌트 (멤버 순서대로) */
-const NICK_HINTS = [
-  "가영","민준","주후이","진현","성탱","보윤","승재","원탱","직한","현주","로컬조","삐성"
-];
-
 const DAYS=[
-  {date:"2025-06-21",label:"21일",dow:"토"},{date:"2025-06-22",label:"22일",dow:"일"},
-  {date:"2025-06-23",label:"23일",dow:"월"},{date:"2025-06-24",label:"24일",dow:"화"},
-  {date:"2025-06-25",label:"25일",dow:"수"},{date:"2025-06-26",label:"26일",dow:"목"},
-  {date:"2025-06-27",label:"27일",dow:"금"},
+  {date:"2026-06-21",label:"21일",dow:"일"},{date:"2026-06-22",label:"22일",dow:"월"},
+  {date:"2026-06-23",label:"23일",dow:"화"},{date:"2026-06-24",label:"24일",dow:"수"},
+  {date:"2026-06-25",label:"25일",dow:"목"},{date:"2026-06-26",label:"26일",dow:"금"},
+  {date:"2026-06-27",label:"27일",dow:"토"},
 ];
 const TIMES=["오전","점심","오후","저녁","밤"];
 const CUR={
@@ -638,7 +633,7 @@ function renderLogin(){
     <div class="login-wrap">
       <div class="l-flag">🇮🇹</div>
       <div class="l-brand">IL CONTO</div>
-      <div class="l-tag">삐성, 로컬조, 주후이, 지칸…<br>어느 분이세요? 👀</div>
+      <div class="l-tag">어느 분이세요? 이름을 눌러주세요 👇</div>
       <div class="l-card">
         <div class="l-card-h">👤 일행 선택</div>
         ${lErr?`<div class="l-err">${lErr}</div>`:""}
@@ -649,12 +644,7 @@ function renderLogin(){
               ${esc(m.nick||m.name)}</button>`;
           }).join("")}
         </div>
-        <div class="nick-hints">
-          <div class="nick-hints-h">닉네임 힌트 (궁금하면 물어보세요 😄)</div>
-          <div class="nick-chips">
-            ${PRESET.map((p,i)=>`<span class="nick-chip">${NICK_HINTS[i]} = ${p.name}</span>`).join("")}
-          </div>
-        </div>
+
       </div>
     </div>`;
     $("#app").querySelectorAll(".pick-btn").forEach(b=>{
