@@ -113,14 +113,14 @@ input,select{font-family:'Nunito',sans-serif;}
 .save{width:100%;background:linear-gradient(135deg,var(--terra),#F08050);color:#fff;border:none;border-radius:13px;padding:16px;font-size:1rem;font-weight:900;box-shadow:0 4px 14px rgba(232,105,74,.3);}
 .save:disabled{opacity:.5;}
 
-/* ── HISTORY (영수증 목록 상시 노출) ── */
+/* ── HISTORY (강제 노출형 플랫 구조) ── */
 .receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);}
 .r-top{display:flex;justify-content:space-between;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line);}
 .r-desc{font-weight:800;font-size:1rem;}
 .r-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .r-total{font-weight:900;font-size:1.1rem;white-space:nowrap;color:var(--terra);}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
-.receipt-details{display:block;margin-top:12px;padding-top:4px;}
+.r-body-list{display:block !important;visibility:visible !important;opacity:1 !important;margin-top:12px;padding-top:4px;}
 .settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
 .settle-item:last-child{border-bottom:none;}
 
@@ -363,7 +363,6 @@ function myInbox(){
 /* ─── RENDER ─── */
 function render(){
   if(!state.me)return renderLogin();
-  const cta=ctaObj();
   $("#app").innerHTML=`
   <div class="hdr"><div class="hdr-in">
     <div class="hdr-top">
@@ -557,7 +556,7 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (누가누가 분담했는지 상시 노출) ── */
+/* ── 영수증 (완전 고정 노출형 플랫 뷰 구조) ── */
 function historyHTML(){
   const allSplits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
@@ -581,7 +580,8 @@ function historyHTML(){
         <div class="r-total num">${fmt(total,cur)}</div>
       </div>
       
-      <div class="receipt-details">
+      <!-- 구조적 은닉 클래스를 전부 폐기하고 무조건 노출되도록 배치 -->
+      <div style="margin-top:12px; padding-top:4px;">
         <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);margin-top:10px;margin-bottom:6px">결제자</div>
         <div class="share-line" style="margin-bottom:12px">
           <span class="pname"><b>${esc(nameOf(s.payerId))}</b>${s.payerId===state.me?" <span class='me-tag'>나</span>":""}</span>
@@ -805,7 +805,7 @@ async function createSplit(){
   const ok=await mutate(rec=>rec.splits.push(split));
   if(ok){
     form=null;
-    state.tab="history"; // 정산 등록 성공 시 영수증 페이지로 즉시 이동
+    state.tab="history"; 
     toast("✅ 정산이 등록되었습니다!", 2000);
     render();
   }
