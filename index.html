@@ -518,7 +518,18 @@ function inboxItemHTML(it){
 function ensureForm(){
   if(form)return;
   const checked={};state.record.members.forEach(m=>checked[m.id]=false);
-  form={day:DAYS[0].date,timeSlot:"저녁",desc:"",currency:"EUR",method:"equal",checked,total:"",amounts:{},err:""};
+  // 오늘 날짜 찾기
+  const today=new Date().toISOString().slice(0,10);
+  const todayDay=DAYS.find(d=>d.date===today)||DAYS[0];
+  // 현재 시간대 결정
+  const hour=new Date().getHours();
+  let currentTime="저녁";
+  if(hour<12)currentTime="오전";
+  else if(hour<14)currentTime="점심";
+  else if(hour<18)currentTime="오후";
+  else if(hour<22)currentTime="저녁";
+  else currentTime="밤";
+  form={day:todayDay.date,timeSlot:currentTime,desc:"",currency:"EUR",method:"equal",checked,total:"",amounts:{},err:""};
 }
 function createHTML(){
   ensureForm();
