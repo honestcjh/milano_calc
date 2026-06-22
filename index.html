@@ -175,6 +175,8 @@ input,select{font-family:'Nunito',sans-serif;}
 .nick-chip{background:var(--cream);border:1px solid var(--line);border-radius:999px;
   padding:4px 10px;font-size:.75rem;font-weight:700;color:var(--ink-soft);}
 
+.settle-item{display:flex;align-items:center;font-size:.88rem;padding:8px 0;border-bottom:1px solid var(--line);}
+.settle-item:last-child{border-bottom:none;}
 /* ── MISC ── */
 .empty{text-align:center;color:var(--ink-soft);padding:44px 18px;line-height:1.8;font-weight:600;}
 .foot{text-align:center;font-size:.66rem;color:var(--ink-soft);padding:18px;font-weight:600;}
@@ -444,39 +446,63 @@ function viewHTML(){
 function homeHTML(){
   const inbox=myInbox();const cta=ctaObj();
   let html=`
-    <button class="cta" data-tab="create"><div class="big">${cta.big}</div><div class="sub">${cta.sub}</div></button>
-    <div class="chart-wrap">
-      <div class="chart-title">📊 유로 지출 현황 · 6월 21–27일</div>${chartSVG()}
-    </div>`;
+    <button class="cta" data-tab="create"><div class="big">${cta.big}</div><div class="sub">${cta.sub}</div></button>`;
+  
+  // 통화별 정산 현황
+  const active=CUR_ORDER.filter(c=>state.record.splits.some(s=>s.currency===c));
+  if(active.length){
+    html+=`<div class="sec-h" style="margin-top:12px">💸 정산 현황</div>`;
+    active.forEach(cur=>{
+      const w=myWallet(cur);
+      const{txns}=settleByCurrency(cur);
+      const myOut=txns.filter(t=>t.from===state.me);
+      const myIn=txns.filter(t=>t.to===state.me);
+      
+      html+=`<div class="wallet">
+        <div class="wallet-h"><span class="sym">${CUR[cur].sym}</span>${CUR[cur].name}</div>
+        <div class="w-grid">
+          <div class="w-cell"><div class="lbl">내가 받을 돈</div><div class="val num credit">${fmt(w.recv,cur)}</div></div>
+          <div class="w-cell"><div class="lbl">내가 줄 돈</div><div class="val num debit">${fmt(w.owe,cur)}</div></div>
+        </div>
+        <div class="w-net"><span>순액</span>
+          <span class="num ${w.net>0?"credit":w.net<0?"debit":"zero"}">${w.net>0?"+":""}${fmt(w.net,cur)}</span>
+        </div>
+      </div>`;
+      
+      // 송금 정리
+      if(myOut.length || myIn.length){
+        html+=`<div class="card" style="background:#fff;border-radius:14px;padding:14px;margin-bottom:14px">
+          <div class="sec-h">📌 ${CUR[cur].name} 정산하기</div>`;
+        if(myOut.length){
+          myOut.forEach(t=>{
+            html+=`<div class="settle-item">
+              <span class="pname"><b>${esc(nameOf(t.to))}</b>에게 송금</span>
+              <span class="dots"></span>
+              <span class="num debit">${fmt(t.amt,cur)}</span>
+            </div>`;
+          });
+        }
+        if(myIn.length){
+          myIn.forEach(t=>{
+            html+=`<div class="settle-item">
+              <span class="pname"><b>${esc(nameOf(t.from))}</b>에게서 받기</span>
+              <span class="dots"></span>
+              <span class="num credit">${fmt(t.amt,cur)}</span>
+            </div>`;
+          });
+        }
+        html+=`</div>`;
+      }
+    });
+  }
+
+  // 응답할 정산함
   if(inbox.length){
-    html+=`<div class="sec-h" style="margin-top:4px">✉️ 응답할 정산함
-      <span style="background:var(--terra);color:#fff;border-radius:999px;padding:1px 8px;font-size:.68rem;margin-left:4px">${inbox.length}</span>
-    </div>`;
+    html+=`<div class="sec-h" style="margin-top:16px">✉️ 응답할 내용 (${inbox.length})</div>`;
     inbox.forEach(it=>html+=inboxItemHTML(it));
   }
-  const active=CUR_ORDER.filter(c=>state.record.splits.some(s=>s.currency===c));
-  if(active.length)html+=`<div class="sec-h" style="margin-top:16px">💰 내 지갑</div>`;
-  active.forEach(cur=>{
-    const w=myWallet(cur);const{txns}=settleByCurrency(cur);
-    const myOut=txns.filter(t=>t.from===state.me);const myIn=txns.filter(t=>t.to===state.me);
-    html+=`<div class="wallet">
-      <div class="wallet-h"><span class="sym">${CUR[cur].sym}</span>${CUR[cur].name} 지갑</div>
-      <div class="w-grid">
-        <div class="w-cell"><div class="lbl">받을 돈 (확정)</div><div class="val num credit">${fmt(w.recv,cur)}</div></div>
-        <div class="w-cell"><div class="lbl">줄 돈 (확정)</div><div class="val num debit">${fmt(w.owe,cur)}</div></div>
-      </div>
-      <div class="w-net"><span>순액</span>
-        <span class="num ${w.net>0?"credit":w.net<0?"debit":"zero"}">${w.net>0?"+":""}${fmt(w.net,cur)}</span></div>
-      ${(w.pendOwe||w.pendRecv)?`<div class="w-pend">대기중 — 줄 돈 ${fmt(w.pendOwe,cur)} · 받을 돈 ${fmt(w.pendRecv,cur)}</div>`:""}
-      ${myOut.length?`<div style="margin-top:10px">${myOut.map(t=>`<div class="share-line">
-        <span class="pname">${esc(nameOf(t.to))}에게 송금</span><span class="dots"></span>
-        <span class="num debit">${fmt(t.amt,cur)}</span></div>`).join("")}</div>`:""}
-      ${myIn.length?`<div>${myIn.map(t=>`<div class="share-line">
-        <span class="pname">${esc(nameOf(t.from))}에게서 받기</span><span class="dots"></span>
-        <span class="num credit">${fmt(t.amt,cur)}</span></div>`).join("")}</div>`:""}
-    </div>`;
-  });
-  if(!inbox.length&&!active.length)
+
+  if(!active.length)
     html+=`<div class="empty">아직 정산 내역이 없어요 🍕<br>밀라노 첫 끼니를 기록해보세요!</div>`;
   return html;
 }
@@ -486,7 +512,7 @@ function inboxItemHTML(it){
   const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
   if(it.type==="pending")return`<div class="inbox-item">
     <div class="ii-top"><div>
-      <div class="ii-desc">${esc(s.desc)} <span class="badge acc">확정됨</span></div>
+      <div class="ii-desc">${esc(s.desc)} </div>
       <div class="ii-meta">${when} · <b>${esc(nameOf(s.payerId))}</b>님 결제 · ${CUR[cur].name}</div>
     </div><div class="ii-amt num debit">${fmt(sh.amount,cur)}</div></div>
     <div class="ii-actions">
