@@ -39,7 +39,7 @@ input,select{font-family:'Nunito',sans-serif;}
 .tab{flex:1;background:none;border:none;padding:10px 2px;font-size:.78rem;font-weight:800;
   color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;}
 .tab.on{color:var(--terra);border-bottom-color:var(--terra);}
-.content{padding:120px 16px 48px;}
+.content{padding:124px 16px 48px;}
 
 /* ── COMPONENTS ── */
 .card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
@@ -66,6 +66,16 @@ input,select{font-family:'Nunito',sans-serif;}
 .seg button{flex:1;min-width:0;padding:11px 6px;border:1.5px solid var(--line);background:#fff;border-radius:11px;font-size:.8rem;font-weight:800;color:var(--ink-soft);}
 .seg button.on{background:var(--terra);color:#fff;border-color:var(--terra);}
 .curseg button.on{background:var(--ink);border-color:var(--ink);}
+
+.day-seg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px;}
+.day-seg button{padding:8px 2px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-size:.7rem;font-weight:800;color:var(--ink-soft);text-align:center;line-height:1.3;}
+.day-seg button .dow{font-size:.58rem;opacity:.65;display:block;}
+.day-seg button.on{background:var(--terra);color:#fff;border-color:var(--terra);}
+.time-seg{display:flex;gap:5px;margin-bottom:14px;}
+.time-seg button{flex:1;padding:9px 4px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-size:.76rem;font-weight:800;color:var(--ink-soft);}
+.time-seg button.on{background:var(--sun);color:var(--ink);border-color:var(--sun);}
+
+.people{border-top:1px dashed var(--line);padding-top:12px;}
 .prow{display:flex;align-items:center;gap:10px;padding:6px 0;}
 .chk{display:flex;align-items:center;gap:10px;flex:1;user-select:none;cursor:pointer;}
 .box{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;position:relative;flex:none;}
@@ -78,6 +88,7 @@ input,select{font-family:'Nunito',sans-serif;}
 /* ── HISTORY ── */
 .receipt{background:var(--card);border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:var(--shadow-sm);}
 .r-top{display:flex;justify-content:space-between;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line);font-weight:800;}
+.r-meta{font-size:.7rem;color:var(--ink-soft);margin-top:2px;font-weight:600;}
 .r-total{color:var(--terra);font-size:1.05rem;}
 .share-line{display:flex;align-items:center;font-size:.86rem;padding:4px 0;}
 
@@ -93,30 +104,29 @@ input,select{font-family:'Nunito',sans-serif;}
 
 <script>
 /* ─── CONFIG ─── */
-const BIN_ID     = "6a38dd76f5f4af5e291b671d";
-const MASTER_KEY = "$2a$10$lnj2XARlHWVJZ4Vkc3YtNuH.64V8zJei.7NfckLaIR8Py6ZCdkZCa";
+const BIN_ID     = "6a38dd76f5f4af5e291b671d"; 
+const MASTER_KEY = "$2a$10$lnj2XARlHWVJZ4Vkc3YtNuH.64V8zJei.7NfckLaIR8Py6ZCdkZCa"; // 정상 작동 인증된 키 고정
 const API        = "https://api.jsonbin.io/v3/b/" + BIN_ID;
 
-const PRESET = [
-  "김가영","김민준","김주희","김진현",
-  "심성태","양보윤","이승재","이원태",
-  "정직한","정현주","조현지","최필성"
+const PRESET = ["김가영","김민준","김주희","김진현","심성태","양보윤","이승재","이원태","정직한","정현주","조현지","최필성"];
+const CUR = { EUR:{sym:"€",factor:100}, KRW:{sym:"₩",factor:1}, TRY:{sym:"₺",factor:100} };
+
+const DAYS=[
+  {date:"2026-06-21",label:"21일",dow:"일"},{date:"2026-06-22",label:"22일",dow:"월"},
+  {date:"2026-06-23",label:"23일",dow:"화"},{date:"2026-06-24",label:"24일",dow:"수"},
+  {date:"2026-06-25",label:"25일",dow:"목"},{date:"2026-06-26",label:"26일",dow:"금"},
+  {date:"2026-06-27",label:"27일",dow:"토"},
 ];
+const TIMES=["오전","점심","오후","저녁","밤"];
 
-const CUR = {
-  EUR:{sym:"€",factor:100},
-  KRW:{sym:"₩",factor:1},
-  TRY:{sym:"₺",factor:100}
-};
-
-const CTA_POOL = [
+const CTA_POOL=[
   "이번엔 제 카드로 하시죠 →",
   "잠깐, 제가 긁겠습니다 →",
   "오늘은 제가 한 번 쏠게요 →",
   "이번엔 제가 결제 해보겠습니다 →",
   "오늘 식사, 제가 책임지겠습니다 →"
 ];
-  
+
 /* ─── STATE ─── */
 let state = { splits: [] };
 let activeTab = "home";
@@ -250,8 +260,14 @@ function viewHTML(ctaText) {
 
 function createHTML() {
   if(!form) {
-    const checked = {}; PRESET.forEach(p => checked[p] = true);
-    form = { payer: PRESET[0], currency: "EUR", desc: "", total: "", method: "equal", checked, amounts: {} };
+    const checked = {}; 
+    // 결제자만 기본 선택(true), 나머지는 선택 해제(false) 구조 셋업
+    PRESET.forEach(p => checked[p] = (p === PRESET[0]));
+    
+    const today = new Date().toISOString().slice(0,10);
+    const todayDay = DAYS.find(d => d.date === today) || DAYS[0];
+    
+    form = { payer: PRESET[0], day: todayDay.date, timeSlot: "저녁", currency: "EUR", desc: "", total: "", method: "equal", checked, amounts: {} };
   }
   
   const ids = PRESET.filter(p => form.checked[p]);
@@ -259,6 +275,16 @@ function createHTML() {
     <div class="field"><span>결제한 사람</span>
       <select id="fPayer">${PRESET.map(p => `<option value="${p}" ${form.payer===p?'selected':''}>${p}</option>`).join("")}</select>
     </div>
+    
+    <div class="field"><span>날짜 선택</span>
+      <div class="day-seg">${DAYS.map(d => `<button data-day="${d.date}" class="daySelBtn ${form.day===d.date?'on':''}">
+        <span class="dow">${d.dow}</span>${d.label}</button>`).join("")}</div>
+    </div>
+    
+    <div class="field"><span>시간대</span>
+      <div class="time-seg">${TIMES.map(t => `<button data-time="${t}" class="timeSelBtn ${form.timeSlot===t?'on':''}">${t}</button>`).join("")}</div>
+    </div>
+
     <div class="field"><span>지출 내용</span><input id="fDesc" placeholder="예: 두오모 피자" value="${esc(form.desc)}"></div>
     <div class="field"><span>통화 선택</span>
       <div class="seg curseg">
@@ -291,9 +317,11 @@ function historyHTML() {
   return list.map((s, idx) => {
     const realIdx = state.splits.length - 1 - idx;
     const total = s.shares.reduce((sum, x) => sum + x.amount, 0);
+    const when = (s.date || "").slice(5).replace("-", "/") + (s.timeSlot ? " " + s.timeSlot : "");
+    
     return `<div class="receipt">
       <div class="r-top">
-        <div><div class="r-desc">${esc(s.desc)}</div><div class="r-meta">결제자: <b>${esc(s.payer)}</b></div></div>
+        <div><div class="r-desc">${esc(s.desc)}</div><div class="r-meta">${when} · 결제자: <b>${esc(s.payer)}</b></div></div>
         <div class="r-total num">${fmt(total, s.currency)}</div>
       </div>
       <div style="margin-top:12px; padding-top:4px;">
@@ -307,7 +335,7 @@ function historyHTML() {
   }).join("");
 }
 
-/* ─── EVENT CONTROLLER (글로벌 위임형 안전 바인딩 구조 개편) ─── */
+/* ─── EVENT CONTROLLER ─── */
 function bindEvents() {
   document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
     activeTab = b.dataset.t;
@@ -320,10 +348,19 @@ function bindEvents() {
   if($("#ctaGo")) $("#ctaGo").addEventListener("click", () => { activeTab = "create"; render(); });
 
   if(activeTab === "create") {
-    $("#fPayer").addEventListener("change", (e) => { form.payer = e.target.value; });
+    // 결제자가 변경되면 기존 결제자 체크 해제 후 새 결제자만 자동 기본 체크 연동
+    $("#fPayer").addEventListener("change", (e) => { 
+      const nextPayer = e.target.value;
+      PRESET.forEach(p => form.checked[p] = (p === nextPayer));
+      form.payer = nextPayer; 
+      render();
+    });
+    
     $("#fDesc").addEventListener("input", (e) => { form.desc = e.target.value; });
     if($("#fTotal")) $("#fTotal").addEventListener("input", (e) => { form.total = e.target.value; });
     
+    document.querySelectorAll(".daySelBtn").forEach(b => b.addEventListener("click", () => { form.day = b.dataset.day; render(); }));
+    document.querySelectorAll(".timeSelBtn").forEach(b => b.addEventListener("click", () => { form.timeSlot = b.dataset.time; render(); }));
     document.querySelectorAll(".cSelBtn").forEach(b => b.addEventListener("click", () => { form.currency = b.dataset.v; render(); }));
     document.querySelectorAll(".mSelBtn").forEach(b => b.addEventListener("click", () => { form.method = b.dataset.v; render(); }));
     
@@ -339,7 +376,7 @@ function bindEvents() {
   }
 }
 
-// 돔 충돌 우려를 완벽 차단하는 전역 클릭 이벤트 핸들러
+// 글로벌 예외 안전 위임형 삭제 이벤트
 document.addEventListener("click", async function(e) {
   if(e.target && e.target.classList.contains("delBtn")) {
     if(!confirm("이 정산 내역을 정말 삭제할까요?")) return;
@@ -371,7 +408,7 @@ async function handleCreate() {
   }
 
   const newSplit = {
-    payer: form.payer, currency: form.currency, desc: form.desc.trim(), shares
+    payer: form.payer, date: form.day, timeSlot: form.timeSlot, currency: form.currency, desc: form.desc.trim(), shares
   };
 
   const nextSplits = [...state.splits, newSplit];
