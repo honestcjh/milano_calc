@@ -298,7 +298,7 @@ function historyHTML() {
   }).join("");
 }
 
-/* ─── EVENT CONTROLLER ─── */
+/* ─── EVENT CONTROLLER (글로벌 위임형 안전 바인딩 구조 개편) ─── */
 function bindEvents() {
   document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
     activeTab = b.dataset.t;
@@ -328,16 +328,18 @@ function bindEvents() {
 
     $("#submitBtn").addEventListener("click", handleCreate);
   }
+}
 
-  // 선언 오류 수정: document.querySelectorAll 형태로 명확히 바인딩 처리
-  document.querySelectorAll(".delBtn").forEach(b => b.addEventListener("click", async () => {
+// 돔 충돌 우려를 완벽 차단하는 전역 클릭 이벤트 핸들러
+document.addEventListener("click", async function(e) {
+  if(e.target && e.target.classList.contains("delBtn")) {
     if(!confirm("이 정산 내역을 정말 삭제할까요?")) return;
-    const idx = parseInt(b.dataset.idx);
+    const idx = parseInt(e.target.dataset.idx);
     const nextSplits = state.splits.filter((_, i) => i !== idx);
     await saveData(nextSplits);
     loadData();
-  }));
-}
+  }
+});
 
 /* ─── 데이터 생성 ─── */
 async function handleCreate() {
