@@ -134,7 +134,7 @@ input,select{font-family:'Nunito',sans-serif;}
 /* ── LOGIN ── */
 .login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:48px 20px 64px;
-  background:linear-gradient(160deg,#FFF2E6 0%,#FFF8F2 50%,#F2F6FF(100%));}
+  background:linear-gradient(160deg,#FFF2E6 0%,#FFF8F2 50%,#F2F6FF 100%);}
 .l-flag{font-size:3rem;line-height:1;margin-bottom:6px;}
 .l-brand{font-size:2.8rem;font-weight:900;letter-spacing:-.04em;line-height:1;
   background:linear-gradient(135deg,var(--terra) 10%,var(--sun) 90%);
@@ -244,7 +244,7 @@ function saveCache(){try{localStorage.setItem(CACHE,JSON.stringify({record:state
 
 /* ─── API ─── */
 async function fetchRecord(){
-  const r=await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY}});
+  const r = await fetch(API+"/latest",{headers:{"X-Master-Key":MASTER_KEY}, cache: "no-store"});
   if(!r.ok)throw new Error("fetch "+r.status);
   const j=await r.json();
   const rec=j.record||{};
@@ -253,18 +253,13 @@ async function fetchRecord(){
   return rec;
 }
 async function putRecord(rec){
-  const doput=async()=>{
-    const r=await fetch(API,{method:"PUT",
-      headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY},
-      body:JSON.stringify(rec)});
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    return r;
-  };
-  try{return await doput();}
-  catch(e){
-    await new Promise(res=>setTimeout(res,1500));
-    return await doput();
-  }
+  const r = await fetch(API,{
+    method:"PUT",
+    headers:{"Content-Type":"application/json","X-Master-Key":MASTER_KEY},
+    body:JSON.stringify({ record: rec })
+  });
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return r;
 }
 
 function mergePresets(rec){
@@ -281,8 +276,7 @@ function mergePresets(rec){
 async function pull(){
   try{
     const rec=await fetchRecord();
-    const changed=mergePresets(rec);
-    if(changed)await putRecord(rec);
+    mergePresets(rec);
     state.record=rec;saveCache();render();
   }catch(e){
     console.warn("pull failed",e);
@@ -300,24 +294,26 @@ async function mutate(fn){
     catch(e){rec=JSON.parse(JSON.stringify(state.record));}
     mergePresets(rec);
     fn(rec);
-    state.record=rec;saveCache();
     await putRecord(rec);
+    state.record=rec;saveCache();
     return true;
   }catch(e){
     console.warn("mutate error",e);
+    toast("서버 저장 실패. 네트워크를 확인해주세요.");
     return false;
   }finally{
     state.busy=false;render();
   }
 }
 
-/* ─── 계산 ─── */
+/* ─── 계산 및 매칭 고정화 ─── */
 function settleByCurrency(cur){
   const net={};state.record.members.forEach(m=>net[m.id]=0);
   state.record.splits.filter(s=>s.currency===cur).forEach(s=>{
     s.shares.forEach(sh=>{
       if(sh.memberId===s.payerId)return;
-      if(sh.status==="confirmed"){
+      // "confirmed" 상태인 내역을 정상 합산 처리
+      if(sh.status==="confirmed" || sh.status==="accepted"){
         net[s.payerId]=(net[s.payerId]||0)+sh.amount;
         net[sh.memberId]=(net[sh.memberId]||0)-sh.amount;
       }
@@ -335,18 +331,17 @@ function settleByCurrency(cur){
   }
   return{net,txns};
 }
+
 function myWallet(cur){
-  const me=state.me;let owe=0,recv=0,pendOwe=0,pendRecv=0;
-  state.record.splits.filter(s=>s.currency===cur).forEach(s=>{
-    s.shares.forEach(sh=>{
-      if(sh.memberId===s.payerId)return;
-      const acc=sh.status==="accepted",pend=sh.status==="pending"||sh.status==="edit_requested";
-      if(s.payerId===me&&sh.memberId!==me){if(acc)recv+=sh.amount;if(pend)pendRecv+=sh.amount;}
-      if(sh.memberId===me&&s.payerId!==me){if(acc)owe+=sh.amount;if(pend)pendOwe+=sh.amount;}
-    });
+  const {txns} = settleByCurrency(cur);
+  let owe = 0, recv = 0;
+  txns.forEach(t => {
+    if(t.from === state.me) owe += t.amt;
+    if(t.to === state.me) recv += t.amt;
   });
-  return{owe,recv,pendOwe,pendRecv,net:recv-owe};
+  return {owe, recv, net: recv - owe};
 }
+
 function myInbox(){
   const me=state.me;const items=[];
   state.record.splits.forEach(s=>{
@@ -563,9 +558,8 @@ function createHTML(){
   </div>`;
 }
 
-/* ── 영수증 (누구나 전체 열람 가능한 완전 오픈형 구조) ── */
+/* ── 영수증 (고정 오픈 구조) ── */
 function historyHTML(){
-  // 최신순 정렬
   const splits=[...state.record.splits].sort((a,b)=>
     (b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
 
@@ -574,7 +568,6 @@ function historyHTML(){
   return splits.map(s=>{
     const cur=s.currency,total=s.shares.reduce((t,x)=>t+x.amount,0);
     const when=(s.date||"").slice(5).replace("-","/")+( s.timeSlot?" "+s.timeSlot:"");
-    // 오픈형이므로 본인이 등록한 영수증이면 삭제 단추 노출
     const canDelete=s.payerId===state.me;
     const recId="rec"+s.id;
     
@@ -713,14 +706,14 @@ async function doLogin(){
   } else {
     member.pin=pin;
     state.record=rec;
-    try{
+    try {
       await putRecord(rec);
       saveCache();
       state.me=member.id;
       lStep="pick";lPin="";lErr="";
       state.tab="home";render();
       toast("PIN이 설정됐어요 ✓");
-    }catch(e){
+    } catch(e) {
       lErr="저장에 실패했어요. 네트워크를 확인해주세요.";renderLogin();
     }
   }
@@ -772,7 +765,7 @@ async function handleAct(act,d){
       toast("거절했어요. 대기중으로 돌아가요");break;
     case "delsplit":
       if(!confirm("이 정산을 정말 삭제할까요?"))break;
-      await mutate(rec=>{rec.splits=rec.splits.filter(x=>x.id!==sid);});toast("삭제했어요");break;
+      await mutate(rec=>{rec.splits=rec.splits.filter(x!==sid);});toast("삭제했어요");break;
     case "madd":mdraft.push({id:uid(),name:"일행 "+(mdraft.length+1),pin:null});render();break;
     case "mremove":
       if(PRESET.find(p=>p.id===d.mid)){toast("프리셋 멤버는 삭제할 수 없어요");break;}
